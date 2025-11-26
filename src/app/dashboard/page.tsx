@@ -227,9 +227,9 @@ export default function Dashboard() {
 
     return (
         <ProtectedRoute>
-            <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-black">
+            <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] overflow-hidden bg-black">
                 {/* Left Sidebar - Configuration */}
-                <div className="w-[400px] flex-shrink-0 border-r border-white/10 bg-black/50 backdrop-blur-xl flex flex-col h-full">
+                <div className="w-full lg:w-[400px] flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 bg-black/50 backdrop-blur-xl flex flex-col h-1/2 lg:h-full">
                     <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
 
                         {/* Saved Profiles */}
@@ -386,7 +386,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Area - Canvas/Results */}
-                <div className="flex-1 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-black to-black relative overflow-hidden flex flex-col">
+                <div className="flex-1 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-black to-black relative overflow-hidden flex flex-col h-1/2 lg:h-full">
                     {isGenerating ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                             <div className="relative size-32 mb-6">
