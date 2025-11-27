@@ -18,9 +18,10 @@ interface GeneratedImage {
 
 interface ResultCarouselProps {
     images: GeneratedImage[]
+    onTemplateSaved?: () => void
 }
 
-export default function ResultCarousel({ images }: ResultCarouselProps) {
+export default function ResultCarousel({ images, onTemplateSaved }: ResultCarouselProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [showPromptDetails, setShowPromptDetails] = useState(false)
@@ -97,6 +98,7 @@ export default function ResultCarousel({ images }: ResultCarouselProps) {
                 currentImage.settings
             )
             alert('Template saved successfully!')
+            if (onTemplateSaved) onTemplateSaved()
         } catch (error: any) {
             console.error('Error saving template:', error)
             alert(`Failed to save template: ${error.message || 'Unknown error'}`)

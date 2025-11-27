@@ -31,9 +31,18 @@ export async function POST(req: Request) {
 
         // Construct the scene prompt
         const presetScene = PRESET_SCENES[settings.preset as keyof typeof PRESET_SCENES] || PRESET_SCENES.minimalist;
-        const scenePrompt = settings.customPrompt
+        let scenePrompt = settings.customPrompt
             ? `${presetScene}. ${settings.customPrompt}`
             : presetScene;
+
+        // Add text overlay instruction if enabled
+        if (settings.textOverlay?.enabled && settings.textOverlay.text) {
+            scenePrompt += `\n\nIMPORTANT: Add the text "${settings.textOverlay.text}" to the image. 
+            Style: ${settings.textOverlay.style}. 
+            Position: ${settings.textOverlay.position}. 
+            The text must be sharp, clear, and perfectly readable. It should look like a professional commercial banner or overlay.
+            CRITICAL: Ensure all characters are rendered correctly, supporting multi-language text including Vietnamese diacritics (e.g., ư, ơ, ê, ô, á, à, ả, ã, ạ). The text should be integrated naturally into the scene but remain legible.`;
+        }
 
         // Reconstruct the base64 data URL
         const imageDataUrl = `data:image/jpeg;base64,${image}`;

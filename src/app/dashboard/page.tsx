@@ -19,6 +19,37 @@ export default function Dashboard() {
     const [profiles, setProfiles] = useState<any[]>([])
     const [isSaving, setIsSaving] = useState(false)
     const [currentProductId, setCurrentProductId] = useState<string | null>(null)
+    const [templates, setTemplates] = useState<any[]>([])
+
+    // Load templates on mount
+    useEffect(() => {
+        loadTemplates()
+    }, [])
+
+    const loadTemplates = async () => {
+        try {
+            const { getTemplates } = await import('@/lib/supabase-utils')
+            const data = await getTemplates()
+            setTemplates(data)
+        } catch (error) {
+            console.error('Error loading templates:', error)
+        }
+    }
+
+    const handleDeleteTemplate = async (id: string) => {
+        try {
+            const { deleteTemplate } = await import('@/lib/supabase-utils')
+            const success = await deleteTemplate(id)
+            if (success) {
+                setTemplates(prev => prev.filter(t => t.id !== id))
+            } else {
+                alert('Failed to delete template')
+            }
+        } catch (error) {
+            console.error('Error deleting template:', error)
+            alert('Failed to delete template')
+        }
+    }
 
     const handleUpload = async (file: File) => {
         setIsUploading(true)
@@ -380,6 +411,8 @@ export default function Dashboard() {
                                 onGenerate={handleGenerate}
                                 isGenerating={isGenerating}
                                 disabled={!analysis}
+                                templates={templates}
+                                onDeleteTemplate={handleDeleteTemplate}
                             />
                         </section>
                     </div>
@@ -401,7 +434,10 @@ export default function Dashboard() {
                             </p>
                         </div>
                     ) : results.length > 0 ? (
-                        <ResultCarousel images={results} />
+                        <ResultCarousel
+                            images={results}
+                            onTemplateSaved={loadTemplates}
+                        />
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                             <div className="relative size-32 mb-6 group">

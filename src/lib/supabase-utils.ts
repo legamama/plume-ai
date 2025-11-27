@@ -221,6 +221,41 @@ export async function saveTemplate(
     }
 }
 
+// Get all templates
+export async function getTemplates() {
+    try {
+        const { data, error } = await supabase
+            .from('templates')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+        if (error) {
+            console.error('Error fetching templates:', error)
+            throw error
+        }
+        return data || []
+    } catch (error) {
+        console.error('Error fetching templates:', error)
+        return []
+    }
+}
+
+// Delete template
+export async function deleteTemplate(id: string) {
+    try {
+        const { error } = await supabase
+            .from('templates')
+            .delete()
+            .eq('id', id)
+
+        if (error) throw error
+        return true
+    } catch (error) {
+        console.error('Error deleting template:', error)
+        return false
+    }
+}
+
 // Get all generations (for gallery)
 export async function getGenerations() {
     try {
