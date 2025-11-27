@@ -75,7 +75,12 @@ export const analyzeProductImage = async (imageBase64: string): Promise<string> 
                 },
             });
 
-            return response.text() || "Could not analyze product details.";
+            if (!response) {
+                return "Could not analyze product details.";
+            }
+
+            const text = response.text;
+            return text || "Could not analyze product details.";
         } catch (error) {
             console.error("Analysis Error:", error);
             throw error;
