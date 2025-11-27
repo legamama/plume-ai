@@ -85,9 +85,22 @@ export default function ResultCarousel({ images }: ResultCarouselProps) {
         }
     }
 
-    const handleSaveTemplate = () => {
-        // TODO: Implement template saving to Supabase
-        alert('Template saving will be implemented with Supabase integration')
+    const handleSaveTemplate = async () => {
+        const templateName = prompt('Enter a name for this template:')
+        if (!templateName || templateName.trim() === '') return
+
+        try {
+            const { saveTemplate } = await import('@/lib/supabase-utils')
+            await saveTemplate(
+                templateName.trim(),
+                currentImage.prompt,
+                currentImage.settings
+            )
+            alert('Template saved successfully!')
+        } catch (error: any) {
+            console.error('Error saving template:', error)
+            alert(`Failed to save template: ${error.message || 'Unknown error'}`)
+        }
     }
 
     return (

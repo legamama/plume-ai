@@ -192,6 +192,35 @@ export async function saveGeneration(
     }
 }
 
+// Save template
+export async function saveTemplate(
+    name: string,
+    prompt: string,
+    settings: any
+) {
+    try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('User not authenticated')
+
+        const { data, error } = await supabase
+            .from('templates')
+            .insert({
+                user_id: user.id,
+                name,
+                prompt,
+                settings
+            })
+            .select()
+            .single()
+
+        if (error) throw error
+        return data
+    } catch (error) {
+        console.error('Error saving template:', error)
+        throw error
+    }
+}
+
 // Get all generations (for gallery)
 export async function getGenerations() {
     try {
