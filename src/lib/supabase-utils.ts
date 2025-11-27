@@ -169,14 +169,25 @@ export async function saveGeneration(
             .single()
 
         if (error) {
-            console.error('Generation save error:', error)
+            console.error('Generation save error details:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+            })
             throw error
         }
 
         console.log('Generation saved:', data)
         return data
-    } catch (error) {
-        console.error('Error saving generation:', error)
+    } catch (error: any) {
+        console.error('Error saving generation:', {
+            message: error?.message,
+            details: error?.details,
+            hint: error?.hint,
+            code: error?.code,
+            stack: error?.stack
+        })
         throw error
     }
 }

@@ -32,7 +32,8 @@ export async function POST(req: Request) {
         const imageDataUrl = `data:image/jpeg;base64,${image}`;
 
         // Try to generate with Gemini
-        const generatedImageUrl = await generateProductScene(
+        // Try to generate with Gemini
+        const { imageUrl, fullPrompt } = await generateProductScene(
             imageDataUrl,
             analysis,
             scenePrompt,
@@ -40,11 +41,9 @@ export async function POST(req: Request) {
             settings.aspectRatio
         );
 
-        const fullPrompt = `Product: ${analysis}\nScene: ${scenePrompt}\nAspect Ratio: ${settings.aspectRatio}`;
-
         return NextResponse.json({
             id: crypto.randomUUID(),
-            url: generatedImageUrl,
+            url: imageUrl,
             prompt: fullPrompt,
         });
 

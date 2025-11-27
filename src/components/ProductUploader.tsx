@@ -64,13 +64,31 @@ export default function ProductUploader({ onUpload, isUploading }: ProductUpload
                     />
 
                     {/* Scanning Animation */}
+                    {/* Scanning Animation */}
                     {isUploading && (
-                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center">
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px]">
+                            {/* Grid Background */}
+                            <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+                            {/* Scanning Line */}
                             <div className="absolute inset-0 bg-gradient-to-b from-purple-500/0 via-purple-500/10 to-purple-500/0 animate-scan" />
                             <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)] animate-scan-line" />
-                            <div className="flex flex-col items-center gap-2 z-20">
-                                <Loader2 className="size-8 text-purple-400 animate-spin" />
-                                <span className="text-xs font-medium text-purple-300 tracking-wider uppercase">Analyzing Product</span>
+
+                            {/* Corner Markers */}
+                            <div className="absolute top-4 left-4 size-8 border-t-2 border-l-2 border-purple-500 rounded-tl-lg" />
+                            <div className="absolute top-4 right-4 size-8 border-t-2 border-r-2 border-purple-500 rounded-tr-lg" />
+                            <div className="absolute bottom-4 left-4 size-8 border-b-2 border-l-2 border-purple-500 rounded-bl-lg" />
+                            <div className="absolute bottom-4 right-4 size-8 border-b-2 border-r-2 border-purple-500 rounded-br-lg" />
+
+                            <div className="flex flex-col items-center gap-3 z-20">
+                                <div className="relative">
+                                    <div className="absolute inset-0 bg-purple-500 blur-xl opacity-20 animate-pulse" />
+                                    <ScanLine className="size-10 text-purple-400 animate-pulse" />
+                                </div>
+                                <div className="flex flex-col items-center gap-1">
+                                    <span className="text-sm font-bold text-white tracking-widest uppercase">Analyzing</span>
+                                    <span className="text-[10px] text-purple-300 tracking-wider animate-pulse">Detecting Features...</span>
+                                </div>
                             </div>
                         </div>
                     )}

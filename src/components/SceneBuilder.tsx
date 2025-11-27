@@ -113,79 +113,80 @@ export default function SceneBuilder({ onGenerate, isGenerating, disabled }: Sce
                 </div>
             </div>
 
-            {/* Aspect Ratio & Model */}
-            <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-3">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <Ratio className="size-3" /> Format
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                        {ASPECT_RATIOS.map((ratio) => (
-                            <button
-                                key={ratio.id}
-                                onClick={() => setSettings({ ...settings, aspectRatio: ratio.id })}
-                                className={`group flex flex-col items-center gap-1.5`}
-                                title={ratio.label}
-                            >
-                                <div className={`w-full rounded-md border transition-all ${settings.aspectRatio === ratio.id
-                                    ? 'bg-purple-500 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
-                                    : 'bg-white/5 border-white/10 hover:border-white/30'
-                                    } ${ratio.ratio}`} />
-                                <span className={`text-[10px] font-medium transition-colors ${settings.aspectRatio === ratio.id ? 'text-purple-400' : 'text-gray-500'
-                                    }`}>{ratio.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="space-y-3">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <Wand2 className="size-3" /> Model
-                    </label>
-                    <div className="flex flex-col gap-2">
-                        {MODELS.map((model) => (
-                            <button
-                                key={model.id}
-                                onClick={() => setSettings({ ...settings, model: model.id })}
-                                className={`px-3 py-2.5 rounded-lg border text-left transition-all ${settings.model === model.id
-                                    ? 'bg-white/10 border-white/20 text-white'
-                                    : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10'
-                                    }`}
-                            >
-                                <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-medium">{model.name}</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-[9px] px-2 py-0.5 rounded-full ${model.badge === 'Recommended' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
-                                            }`}>{model.badge}</span>
-                                        {settings.model === model.id && <div className="size-1.5 rounded-full bg-purple-500" />}
-                                    </div>
-                                </div>
-                                <p className="text-[10px] text-gray-500 leading-tight">{model.description}</p>
-                            </button>
-                        ))}
-                    </div>
+            {/* Aspect Ratio */}
+            <div className="space-y-3">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Ratio className="size-3" /> Format
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                    {ASPECT_RATIOS.map((ratio) => (
+                        <button
+                            key={ratio.id}
+                            onClick={() => setSettings({ ...settings, aspectRatio: ratio.id })}
+                            className={`group flex flex-col items-center gap-1.5`}
+                            title={ratio.label}
+                        >
+                            <div className={`w-full rounded-md border transition-all ${settings.aspectRatio === ratio.id
+                                ? 'bg-purple-500 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+                                : 'bg-white/5 border-white/10 hover:border-white/30'
+                                } ${ratio.ratio}`} />
+                            <span className={`text-[10px] font-medium transition-colors ${settings.aspectRatio === ratio.id ? 'text-purple-400' : 'text-gray-500'
+                                }`}>{ratio.name}</span>
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            {/* Generate Button */}
-            <button
-                onClick={handleSubmit}
-                disabled={isGenerating}
-                className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group relative overflow-hidden"
-            >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                {isGenerating ? (
-                    <>
-                        <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Generating...
-                    </>
-                ) : (
-                    <>
-                        <Wand2 className="size-4 group-hover:rotate-12 transition-transform" />
-                        Generate Photoshoot
-                    </>
-                )}
-            </button>
+            {/* Model */}
+            <div className="space-y-3 pb-24">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Wand2 className="size-3" /> Model
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                    {MODELS.map((model) => (
+                        <button
+                            key={model.id}
+                            onClick={() => setSettings({ ...settings, model: model.id })}
+                            className={`px-3 py-3 rounded-lg border text-left transition-all ${settings.model === model.id
+                                ? 'bg-white/10 border-white/20 text-white'
+                                : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10'
+                                }`}
+                        >
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-sm font-medium">{model.name}</span>
+                                <div className="flex items-center gap-2">
+                                    <span className={`text-[9px] px-2 py-0.5 rounded-full ${model.badge === 'Recommended' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'
+                                        }`}>{model.badge}</span>
+                                    {settings.model === model.id && <div className="size-1.5 rounded-full bg-purple-500" />}
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-gray-500 leading-tight">{model.description}</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Generate Button - Fixed at bottom of container */}
+            <div className="sticky bottom-0 -mx-6 -mb-6 p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-20 backdrop-blur-sm">
+                <button
+                    onClick={handleSubmit}
+                    disabled={isGenerating}
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group relative overflow-hidden shadow-xl"
+                >
+                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                    {isGenerating ? (
+                        <>
+                            <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Generating...
+                        </>
+                    ) : (
+                        <>
+                            <Wand2 className="size-4 group-hover:rotate-12 transition-transform" />
+                            Generate Photoshoot
+                        </>
+                    )}
+                </button>
+            </div>
         </div>
     )
 }

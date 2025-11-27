@@ -1,11 +1,11 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 
 const getClient = () => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error("API Key not found. Please set the GEMINI_API_KEY environment variable.");
     }
-    return new GoogleGenerativeAI(apiKey);
+    return new GoogleGenAI({ apiKey });
 };
 
 // Helper to strip the data:image/png;base64, prefix
@@ -50,27 +50,31 @@ export const analyzeProductImage = async (imageBase64: string): Promise<string> 
             const ai = getClient();
             const { data, mimeType } = extractBase64Data(imageBase64);
 
-            const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-            const result = await model.generateContent([
-                {
-                    inlineData: {
-                        mimeType,
-                        data
-                    }
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.0-flash',
+                // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
+                contents: {
+                    role: 'user',
+                    parts: [
+                        {
+                            inlineData: {
+                                mimeType,
+                                data,
+                            },
+                        },
+                        {
+                            text: `Analyze this product image in high detail for a professional photographer. 
+            Describe the physical characteristics of the product, including:
+            1. Exact text, brand names, and logos visible (quote them).
+            2. Colors, materials (e.g., matte plastic, brushed metal, glass), and textures.
+            3. Shape and form.
+            
+            This description will be used to instruct an image generator to PRESERVE these details perfectly in a new setting.`,
+                        },
+                    ],
                 },
-                {
-                    text: `Analyze this product image in high detail for a professional photographer. 
-          Describe the physical characteristics of the product, including:
-          1. Exact text, brand names, and logos visible (quote them).
-          2. Colors, materials (e.g., matte plastic, brushed metal, glass), and textures.
-          3. Shape and form.
-          
-          This description will be used to instruct an image generator to PRESERVE these details perfectly in a new setting.`
-                }
-            ]);
+            });
 
-            const response = await result.response;
             return response.text() || "Could not analyze product details.";
         } catch (error) {
             console.error("Analysis Error:", error);
@@ -83,53 +87,63 @@ export const generateProductScene = async (
     originalImageBase64: string,
     productDescription: string,
     scenePrompt: string,
-    modelName: string,
+    model: string,
     aspectRatio: string
-): Promise<string> => {
+): Promise<{ imageUrl: string, fullPrompt: string }> => {
     return withRetry(async () => {
         try {
             const ai = getClient();
             const { data, mimeType } = extractBase64Data(originalImageBase64);
 
-            // Use gemini-2.5-flash-image for image generation
-            const model = ai.getGenerativeModel({
-                model: modelName === 'gemini-2.5' ? 'gemini-2.5-flash-image' : 'gemini-2.5-flash-image'
+            // FIX: Correctly set imageConfig for both supported image generation models.
+            // `aspectRatio` is supported by both, while `imageSize` is only for `gemini-3-pro-image-preview`.
+            const imageConfig: any = {
+                aspectRatio: aspectRatio,
+            };
+            if (model === 'gemini-3-pro-image-preview') {
+                imageConfig.imageSize = "1K";
+            }
+            const config = { imageConfig };
+
+            const fullTextPrompt = `Create a professional product photoshoot image.
+            
+REFERENCE IMAGE: Use the attached image as the strict visual reference for the product.
+
+PRODUCT DETAILS TO PRESERVE (CRITICAL):
+${productDescription}
+
+INSTRUCTIONS:
+1. Place the exact product shown in the reference image into the following scene: "${scenePrompt}".
+2. DO NOT change the product's shape, text, logos, or colors. The product branding must remain sharp and legible.
+3. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
+4. The result should look like a high-end commercial photograph.`;
+
+            const response = await ai.models.generateContent({
+                model: model,
+                // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
+                contents: {
+                    role: 'user',
+                    parts: [
+                        {
+                            inlineData: {
+                                mimeType,
+                                data,
+                            },
+                        },
+                        {
+                            text: fullTextPrompt,
+                        },
+                    ],
+                },
+                config: config,
             });
 
-            const result = await model.generateContent([
-                {
-                    inlineData: {
-                        mimeType,
-                        data
-                    }
-                },
-                {
-                    text: `Create a professional product photoshoot image.
-          
-          REFERENCE IMAGE: Use the attached image as the strict visual reference for the product.
-          
-          PRODUCT DETAILS TO PRESERVE (CRITICAL):
-          ${productDescription}
-          
-          INSTRUCTIONS:
-          1. Place the exact product shown in the reference image into the following scene: "${scenePrompt}".
-          2. DO NOT change the product's shape, text, logos, or colors. The product branding must remain sharp and legible.
-          3. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
-          4. The result should look like a high-end commercial photograph.
-          5. Aspect ratio: ${aspectRatio}`
-                }
-            ]);
-
-            const response = await result.response;
-
-            // Extract image from response
-            const candidates = response.candidates;
-            if (candidates && candidates.length > 0) {
-                const parts = candidates[0].content.parts;
-                for (const part of parts) {
-                    if (part.inlineData) {
-                        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-                    }
+            for (const part of response.candidates?.[0]?.content?.parts || []) {
+                if (part.inlineData) {
+                    return {
+                        imageUrl: `data:image/png;base64,${part.inlineData.data}`,
+                        fullPrompt: fullTextPrompt
+                    };
                 }
             }
 
