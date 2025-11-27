@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera } from 'lucide-react'
+import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon } from 'lucide-react'
 
 interface SceneBuilderProps {
     onGenerate: (settings: GenerationSettings) => void
@@ -23,6 +23,13 @@ const PRESETS = [
     { id: 'neon', name: 'Neon Cyberpunk', description: 'Futuristic neon lights', icon: Sparkles, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
     { id: 'cozy', name: 'Cozy Interior', description: 'Warm wooden table', icon: Armchair, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
     { id: 'floating', name: 'Floating Pastel', description: 'Surreal pastel colors', icon: Sparkles, color: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20' },
+    { id: 'industrial', name: 'Industrial Concrete', description: 'Raw concrete textures', icon: Factory, color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/20' },
+    { id: 'summer', name: 'Summer Beach', description: 'Bright sun & sand', icon: Sun, color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
+    { id: 'winter', name: 'Snowy Winter', description: 'Crisp white snow', icon: Snowflake, color: 'text-blue-200', bg: 'bg-blue-300/10', border: 'border-blue-300/20' },
+    { id: 'lunar', name: 'Lunar New Year', description: 'Festive red & gold', icon: Flame, color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20' },
+    { id: 'sale', name: 'Sale Banner', description: 'Commercial promo style', icon: Tag, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+    { id: 'urban', name: 'Urban Street', description: 'City street vibe', icon: Building2, color: 'text-zinc-400', bg: 'bg-zinc-500/10', border: 'border-zinc-500/20' },
+    { id: 'moody', name: 'Dark Moody', description: 'Dramatic shadows', icon: Moon, color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20' },
 ]
 
 const ASPECT_RATIOS = [
