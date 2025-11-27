@@ -20,9 +20,18 @@ const PRESET_SCENES = {
 
 export async function POST(req: Request) {
     try {
+        console.log('Generate API: Request received');
         const { image, analysis, settings } = await req.json();
 
+        console.log('Generate API: Parsed request body', {
+            hasImage: !!image,
+            hasAnalysis: !!analysis,
+            hasSettings: !!settings,
+            settings: settings
+        });
+
         if (!image || !analysis || !settings) {
+            console.error('Generate API: Missing required fields', { image: !!image, analysis: !!analysis, settings: !!settings });
             return NextResponse.json(
                 { error: "Missing required fields" },
                 { status: 400 }
@@ -44,10 +53,12 @@ export async function POST(req: Request) {
             CRITICAL: Ensure all characters are rendered correctly, supporting multi-language text including Vietnamese diacritics (e.g., ư, ơ, ê, ô, á, à, ả, ã, ạ). The text should be integrated naturally into the scene but remain legible.`;
         }
 
+        console.log('Generate API: Scene prompt constructed', { scenePrompt: scenePrompt.substring(0, 100) + '...' });
+
         // Reconstruct the base64 data URL
         const imageDataUrl = `data:image/jpeg;base64,${image}`;
 
-        // Try to generate with Gemini
+        console.log('Generate API: Calling generateProductScene');
         // Try to generate with Gemini
         const { imageUrl, fullPrompt } = await generateProductScene(
             imageDataUrl,
@@ -57,6 +68,8 @@ export async function POST(req: Request) {
             settings.aspectRatio
         );
 
+        console.log('Generate API: Image generated successfully');
+
         return NextResponse.json({
             id: crypto.randomUUID(),
             url: imageUrl,
@@ -64,7 +77,11 @@ export async function POST(req: Request) {
         });
 
     } catch (error: any) {
-        console.error("Generation error:", error);
+        console.error("Generate API: Error occurred", {
+            message: error?.message,
+            stack: error?.stack,
+            error: error
+        });
         return NextResponse.json(
             { error: error?.message || "Failed to generate image. Please try again." },
             { status: 500 }

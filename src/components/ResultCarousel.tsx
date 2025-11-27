@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, Download, Maximize2, Share2, X, Save } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Maximize2, Share2, X, Save, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 
 interface GeneratedImage {
     id: string
@@ -13,6 +13,12 @@ interface GeneratedImage {
         aspectRatio: string
         model: string
         customPrompt?: string
+        textOverlay?: {
+            enabled: boolean
+            text: string
+            style: string
+            position: string
+        }
     }
 }
 
@@ -25,6 +31,7 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [showPromptDetails, setShowPromptDetails] = useState(false)
+    const [detailsExpanded, setDetailsExpanded] = useState(false)
 
     if (images.length === 0) return null
 
@@ -170,44 +177,98 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
 
                 {/* Filmstrip & Info */}
                 <div className="bg-black/40 border-t border-white/10 backdrop-blur-md">
-                    <div className="container mx-auto px-6 py-4">
-                        <div className="flex items-center gap-6">
-                            {/* Filmstrip */}
-                            <div className="flex gap-2 overflow-x-auto pb-2 max-w-md no-scrollbar">
-                                {images.map((img, idx) => (
-                                    <button
-                                        key={img.id}
-                                        onClick={() => setCurrentIndex(idx)}
-                                        className={`relative size-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex ? 'border-purple-500 opacity-100 scale-110' : 'border-transparent opacity-50 hover:opacity-80'
-                                            }`}
-                                    >
-                                        <Image src={img.url} alt="" fill className="object-cover" />
-                                        {idx === currentIndex && (
-                                            <div className="absolute inset-0 bg-purple-500/20" />
+                    <div className="container mx-auto px-4 lg:px-6 py-4">
+                        <div className="space-y-4">
+                            {/* Main Row */}
+                            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+                                {/* Filmstrip */}
+                                <div className="flex gap-2 overflow-x-auto pb-2 max-w-full lg:max-w-md no-scrollbar">
+                                    {images.map((img, idx) => (
+                                        <button
+                                            key={img.id}
+                                            onClick={() => setCurrentIndex(idx)}
+                                            className={`relative size-14 lg:size-16 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-all ${idx === currentIndex ? 'border-purple-500 opacity-100 scale-110' : 'border-transparent opacity-50 hover:opacity-80'
+                                                }`}
+                                        >
+                                            <Image src={img.url} alt="" fill className="object-cover" />
+                                            {idx === currentIndex && (
+                                                <div className="absolute inset-0 bg-purple-500/20" />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="hidden lg:block h-12 w-px bg-white/10" />
+
+                                {/* Prompt Info */}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-1">
+                                        Prompt Used
+                                    </h3>
+                                    <p className={`text-xs lg:text-sm text-gray-300 font-light ${detailsExpanded ? '' : 'line-clamp-2'}`}>
+                                        {currentImage.prompt}
+                                    </p>
+                                </div>
+
+                                {/* Save Template Button */}
+                                <button
+                                    onClick={handleSaveTemplate}
+                                    className="flex-shrink-0 px-4 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition-all flex items-center gap-2 text-sm font-medium"
+                                >
+                                    <Save className="size-4" />
+                                    <span className="hidden sm:inline">Save Template</span>
+                                </button>
+                            </div>
+
+                            {/* Expandable Details */}
+                            {detailsExpanded && (
+                                <div className="space-y-3 pt-3 border-t border-white/10 animate-in slide-in-from-top-2 fade-in duration-200">
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <Sparkles className="size-3 text-purple-400" />
+                                        <span className="text-gray-400">Generation Details</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <div className="bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                                            <div className="text-[10px] text-gray-500 mb-1">Preset</div>
+                                            <div className="text-sm text-white font-medium">{currentImage.settings?.preset || 'N/A'}</div>
+                                        </div>
+                                        <div className="bg-white/5 px-3 py-2 rounded-lg border border-white/5">
+                                            <div className="text-[10px] text-gray-500 mb-1">Aspect Ratio</div>
+                                            <div className="text-sm text-white font-medium">{currentImage.settings?.aspectRatio || 'N/A'}</div>
+                                        </div>
+                                        <div className="bg-white/5 px-3 py-2 rounded-lg border border-white/5 col-span-2">
+                                            <div className="text-[10px] text-gray-500 mb-1">Model</div>
+                                            <div className="text-sm text-white font-medium truncate">{currentImage.settings?.model || 'N/A'}</div>
+                                        </div>
+                                        {currentImage.settings?.textOverlay?.enabled && (
+                                            <div className="bg-purple-500/10 px-3 py-2 rounded-lg border border-purple-500/20 col-span-2 md:col-span-4">
+                                                <div className="text-[10px] text-purple-400 mb-1">Text Overlay</div>
+                                                <div className="text-sm text-white font-medium mb-1">{currentImage.settings.textOverlay.text}</div>
+                                                <div className="text-[10px] text-gray-400">
+                                                    {currentImage.settings.textOverlay.style} • {currentImage.settings.textOverlay.position}
+                                                </div>
+                                            </div>
                                         )}
-                                    </button>
-                                ))}
-                            </div>
+                                    </div>
+                                </div>
+                            )}
 
-                            <div className="h-12 w-px bg-white/10" />
-
-                            {/* Prompt Info */}
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-xs font-semibold text-purple-400 uppercase tracking-wider mb-1">
-                                    Prompt Used
-                                </h3>
-                                <p className="text-sm text-gray-300 line-clamp-2 font-light">
-                                    {currentImage.prompt}
-                                </p>
-                            </div>
-
-                            {/* Save Template Button */}
+                            {/* Expand/Collapse Button */}
                             <button
-                                onClick={handleSaveTemplate}
-                                className="flex-shrink-0 px-4 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition-all flex items-center gap-2 text-sm font-medium"
+                                onClick={() => setDetailsExpanded(!detailsExpanded)}
+                                className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-white"
                             >
-                                <Save className="size-4" />
-                                Save Template
+                                {detailsExpanded ? (
+                                    <>
+                                        <ChevronUp className="size-3.5" />
+                                        Show Less
+                                    </>
+                                ) : (
+                                    <>
+                                        <ChevronDown className="size-3.5" />
+                                        Show Details
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -305,6 +366,18 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
                                     <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Custom Details</label>
                                     <div className="mt-2 p-3 bg-black/40 rounded-lg border border-white/10 text-sm text-white">
                                         {currentImage.settings.customPrompt}
+                                    </div>
+                                </div>
+                            )}
+
+                            {currentImage.settings?.textOverlay?.enabled && (
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Text Overlay</label>
+                                    <div className="mt-2 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                                        <div className="text-sm text-white font-medium mb-2">{currentImage.settings.textOverlay.text}</div>
+                                        <div className="text-xs text-gray-400">
+                                            Style: {currentImage.settings.textOverlay.style} • Position: {currentImage.settings.textOverlay.position}
+                                        </div>
                                     </div>
                                 </div>
                             )}

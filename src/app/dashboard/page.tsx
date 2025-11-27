@@ -258,20 +258,20 @@ export default function Dashboard() {
 
     return (
         <ProtectedRoute>
-            <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] overflow-hidden bg-black">
+            <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)] lg:overflow-hidden bg-black min-h-[calc(100vh-4rem)]">
                 {/* Left Sidebar - Configuration */}
-                <div className="w-full lg:w-[400px] flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 bg-black/50 backdrop-blur-xl flex flex-col h-1/2 lg:h-full">
-                    <div className="flex-1 overflow-y-auto p-6 space-y-8 no-scrollbar">
+                <div className="w-full lg:w-[450px] flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 bg-black/50 backdrop-blur-xl flex flex-col h-auto lg:h-full z-10">
+                    <div className="flex-1 lg:overflow-y-auto p-4 lg:p-6 space-y-6 lg:space-y-8 no-scrollbar">
 
                         {/* Saved Profiles */}
                         <section className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold flex items-center gap-2 text-white">
-                                    <Bookmark className="size-5 text-green-400" />
+                                <h2 className="text-sm lg:text-lg font-semibold flex items-center gap-2 text-white">
+                                    <Bookmark className="size-4 lg:size-5 text-green-400" />
                                     Saved Profiles
                                 </h2>
                                 {profiles.length > 0 && (
-                                    <span className="text-xs text-gray-500">{profiles.length} saved</span>
+                                    <span className="text-[10px] lg:text-xs text-gray-500">{profiles.length} saved</span>
                                 )}
                             </div>
                             {profiles.length > 0 ? (
@@ -279,7 +279,7 @@ export default function Dashboard() {
                                     {profiles.map((profile: any) => (
                                         <div
                                             key={profile.id}
-                                            className="group relative flex-shrink-0 w-24"
+                                            className="group relative flex-shrink-0 w-20 lg:w-24"
                                         >
                                             <button
                                                 onClick={() => handleLoadProfile(profile)}
@@ -301,13 +301,13 @@ export default function Dashboard() {
                                             >
                                                 <X className="size-3" />
                                             </button>
-                                            <p className="mt-1.5 text-xs text-gray-400 text-center truncate">{profile.name}</p>
+                                            <p className="mt-1.5 text-[10px] lg:text-xs text-gray-400 text-center truncate">{profile.name}</p>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center">
-                                    <div className="text-gray-500 text-sm">No saved profiles yet</div>
+                                    <div className="text-gray-500 text-xs lg:text-sm">No saved profiles yet</div>
                                 </div>
                             )}
                         </section>
@@ -315,15 +315,15 @@ export default function Dashboard() {
                         {/* Product Upload */}
                         <section className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold flex items-center gap-2 text-white">
-                                    <ImageIcon className="size-5 text-purple-400" />
+                                <h2 className="text-sm lg:text-lg font-semibold flex items-center gap-2 text-white">
+                                    <ImageIcon className="size-4 lg:size-5 text-purple-400" />
                                     Product
                                 </h2>
                                 {analysis && (
                                     <button
                                         onClick={handleSaveProfile}
                                         disabled={isSaving}
-                                        className="text-xs bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 px-3 py-1 rounded-full transition-colors"
+                                        className="text-[10px] lg:text-xs bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20 px-3 py-1 rounded-full transition-colors"
                                     >
                                         {isSaving ? 'Saving...' : 'Save Profile'}
                                     </button>
@@ -335,8 +335,8 @@ export default function Dashboard() {
                         {/* Analysis Result */}
                         <section className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-lg font-semibold flex items-center gap-2 text-white">
-                                    <Sparkles className="size-5 text-blue-400" />
+                                <h2 className="text-sm lg:text-lg font-semibold flex items-center gap-2 text-white">
+                                    <Sparkles className="size-4 lg:size-5 text-blue-400" />
                                     Analysis
                                 </h2>
                                 {analysis && (
@@ -348,13 +348,13 @@ export default function Dashboard() {
                                                         setAnalysis(originalAnalysis)
                                                         setIsEditingAnalysis(false)
                                                     }}
-                                                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                                                    className="text-[10px] lg:text-xs text-gray-400 hover:text-white transition-colors"
                                                 >
                                                     Cancel
                                                 </button>
                                                 <button
                                                     onClick={() => setIsEditingAnalysis(false)}
-                                                    className="text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/20 px-3 py-1 rounded-full transition-colors"
+                                                    className="text-[10px] lg:text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/20 px-3 py-1 rounded-full transition-colors"
                                                 >
                                                     Save
                                                 </button>
@@ -365,14 +365,14 @@ export default function Dashboard() {
                                                     onClick={() => {
                                                         setAnalysis(originalAnalysis)
                                                     }}
-                                                    className="text-xs text-gray-400 hover:text-white transition-colors"
+                                                    className="text-[10px] lg:text-xs text-gray-400 hover:text-white transition-colors"
                                                     title="Reset to original"
                                                 >
                                                     Reset
                                                 </button>
                                                 <button
                                                     onClick={() => setIsEditingAnalysis(true)}
-                                                    className="text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/20 px-3 py-1 rounded-full transition-colors"
+                                                    className="text-[10px] lg:text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/20 px-3 py-1 rounded-full transition-colors"
                                                 >
                                                     Edit
                                                 </button>
@@ -390,21 +390,21 @@ export default function Dashboard() {
                                         placeholder="Edit the AI analysis..."
                                     />
                                 ) : (
-                                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-white/10 text-sm text-gray-300 leading-relaxed max-h-40 overflow-y-auto shadow-inner animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-white/10 text-xs lg:text-sm text-gray-300 leading-relaxed max-h-40 overflow-y-auto shadow-inner animate-in fade-in slide-in-from-bottom-4 duration-500">
                                         {analysis}
                                     </div>
                                 )
                             ) : (
                                 <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center">
-                                    <div className="text-gray-500 text-sm">Analysis will appear here after upload</div>
+                                    <div className="text-gray-500 text-xs lg:text-sm">Analysis will appear here after upload</div>
                                 </div>
                             )}
                         </section>
 
                         {/* Scene Settings */}
                         <section className="space-y-3 pb-8">
-                            <h2 className="text-lg font-semibold flex items-center gap-2 text-white">
-                                <Settings2 className="size-5 text-pink-400" />
+                            <h2 className="text-sm lg:text-lg font-semibold flex items-center gap-2 text-white">
+                                <Settings2 className="size-4 lg:size-5 text-pink-400" />
                                 Scene
                             </h2>
                             <SceneBuilder
@@ -419,7 +419,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Area - Canvas/Results */}
-                <div className="flex-1 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-black to-black relative overflow-hidden flex flex-col h-1/2 lg:h-full">
+                <div className="flex-1 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-black to-black relative overflow-hidden flex flex-col min-h-[500px] lg:min-h-0 lg:h-full border-t lg:border-t-0 lg:border-l border-white/10">
                     {isGenerating ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                             <div className="relative size-32 mb-6">
@@ -428,8 +428,8 @@ export default function Dashboard() {
                                     <div className="size-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
                                 </div>
                             </div>
-                            <h3 className="text-2xl font-semibold text-white mb-3 tracking-tight">Generating Your Image</h3>
-                            <p className="text-gray-400 max-w-md mx-auto text-lg leading-relaxed">
+                            <h3 className="text-xl lg:text-2xl font-semibold text-white mb-3 tracking-tight">Generating Your Image</h3>
+                            <p className="text-gray-400 max-w-md mx-auto text-sm lg:text-lg leading-relaxed">
                                 AI is creating your professional product photo...
                             </p>
                         </div>
@@ -440,14 +440,14 @@ export default function Dashboard() {
                         />
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                            <div className="relative size-32 mb-6 group">
+                            <div className="relative size-24 lg:size-32 mb-6 group">
                                 <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-2xl group-hover:bg-purple-500/30 transition-all duration-500" />
-                                <div className="relative size-32 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center backdrop-blur-sm shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                    <Sparkles className="size-12 text-gray-500 group-hover:text-purple-400 transition-colors duration-500" />
+                                <div className="relative size-24 lg:size-32 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center backdrop-blur-sm shadow-2xl group-hover:scale-105 transition-transform duration-500">
+                                    <Sparkles className="size-10 lg:size-12 text-gray-500 group-hover:text-purple-400 transition-colors duration-500" />
                                 </div>
                             </div>
-                            <h3 className="text-2xl font-semibold text-white mb-3 tracking-tight">Ready to Create Magic</h3>
-                            <p className="text-gray-500 max-w-md mx-auto text-lg leading-relaxed">
+                            <h3 className="text-xl lg:text-2xl font-semibold text-white mb-3 tracking-tight">Ready to Create Magic</h3>
+                            <p className="text-gray-500 max-w-md mx-auto text-sm lg:text-lg leading-relaxed">
                                 Upload your product image to start generating professional photography with AI.
                             </p>
                         </div>
