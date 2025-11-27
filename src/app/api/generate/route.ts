@@ -15,18 +15,20 @@ const PRESET_SCENES = {
     lunar: "Festive Lunar New Year theme with red and gold elements, lanterns, traditional patterns, and warm celebratory lighting",
     sale: "Commercial sale banner style with bold solid background, confetti or geometric shapes, high contrast, and space for text",
     urban: "Modern urban street scene with city architecture, asphalt textures, blurred city lights in background, and street style vibe",
-    moody: "Dark and moody atmosphere with deep shadows, rich textures, spotlighting on the product, and cinematic look"
+    moody: "Dark and moody atmosphere with deep shadows, rich textures, spotlighting on the product, and cinematic look",
+    spa: "Elegant bathroom spa setting with white marble, soft towels, water droplets, bamboo accents, and warm relaxing lighting"
 };
 
 export async function POST(req: Request) {
     try {
         console.log('Generate API: Request received');
-        const { image, analysis, settings } = await req.json();
+        const { image, analysis, settings, apiKey } = await req.json();
 
         console.log('Generate API: Parsed request body', {
             hasImage: !!image,
             hasAnalysis: !!analysis,
             hasSettings: !!settings,
+            hasApiKey: !!apiKey,
             settings: settings
         });
 
@@ -65,7 +67,8 @@ export async function POST(req: Request) {
             analysis,
             scenePrompt,
             settings.model,
-            settings.aspectRatio
+            settings.aspectRatio,
+            apiKey
         );
 
         console.log('Generate API: Image generated successfully');

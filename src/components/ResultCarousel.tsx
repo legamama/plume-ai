@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Download, Maximize2, Share2, X, Save, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import ScrollableContainer from '@/components/ui/ScrollableContainer'
 
 interface GeneratedImage {
     id: string
@@ -182,7 +183,7 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
                             {/* Main Row */}
                             <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
                                 {/* Filmstrip */}
-                                <div className="flex gap-2 overflow-x-auto pb-2 max-w-full lg:max-w-md no-scrollbar">
+                                <ScrollableContainer className="max-w-full lg:max-w-md">
                                     {images.map((img, idx) => (
                                         <button
                                             key={img.id}
@@ -196,7 +197,7 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
                                             )}
                                         </button>
                                     ))}
-                                </div>
+                                </ScrollableContainer>
 
                                 <div className="hidden lg:block h-12 w-px bg-white/10" />
 

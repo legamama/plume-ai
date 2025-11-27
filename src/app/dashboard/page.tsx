@@ -5,8 +5,9 @@ import Image from 'next/image'
 import ProductUploader from '@/components/ProductUploader'
 import SceneBuilder, { GenerationSettings } from '@/components/SceneBuilder'
 import ResultCarousel from '@/components/ResultCarousel'
-import { Bookmark, Sparkles, Settings2, X, Image as ImageIcon } from 'lucide-react'
+import { Bookmark, Sparkles, Settings2, X, Image as ImageIcon, ArrowLeft, ArrowRight, Check, GripHorizontal } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import ScrollableContainer from '@/components/ui/ScrollableContainer'
 
 export default function Dashboard() {
     const [isUploading, setIsUploading] = useState(false)
@@ -20,11 +21,24 @@ export default function Dashboard() {
     const [isSaving, setIsSaving] = useState(false)
     const [currentProductId, setCurrentProductId] = useState<string | null>(null)
     const [templates, setTemplates] = useState<any[]>([])
+    const [folders, setFolders] = useState<any[]>([])
+    const [isReorderingProfiles, setIsReorderingProfiles] = useState(false)
 
-    // Load templates on mount
+    // Load templates and folders on mount
     useEffect(() => {
         loadTemplates()
+        loadFolders()
     }, [])
+
+    const loadFolders = async () => {
+        try {
+            const { getTemplateFolders } = await import('@/lib/supabase-utils')
+            const data = await getTemplateFolders()
+            setFolders(data)
+        } catch (error) {
+            console.error('Error loading folders:', error)
+        }
+    }
 
     const loadTemplates = async () => {
         try {
@@ -68,6 +82,8 @@ export default function Dashboard() {
 
                     setUploadedImage(base64Data)
 
+                    const apiKey = localStorage.getItem('plume_gemini_api_key')
+
                     const response = await fetch('/api/analyze', {
                         method: 'POST',
                         headers: {
@@ -76,6 +92,7 @@ export default function Dashboard() {
                         body: JSON.stringify({
                             image: base64Data,
                             mimeType: mimeType,
+                            apiKey,
                         }),
                     })
 
@@ -89,6 +106,10 @@ export default function Dashboard() {
                     setAnalysis(analysisText)
                     setOriginalAnalysis(analysisText) // Store original for reset
                     setIsEditingAnalysis(false)
+
+                    // Increment usage count
+                    const currentUsage = parseInt(localStorage.getItem('plume_api_usage_count') || '0', 10)
+                    localStorage.setItem('plume_api_usage_count', (currentUsage + 1).toString())
                 } catch (error: any) {
                     console.error('Error analyzing image:', error)
                     alert(`Failed to analyze image: ${error.message || 'Unknown error'}. Please check console for details.`)
@@ -108,6 +129,8 @@ export default function Dashboard() {
 
         setIsGenerating(true)
         try {
+            const apiKey = localStorage.getItem('plume_gemini_api_key')
+
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: {
@@ -117,6 +140,7 @@ export default function Dashboard() {
                     image: uploadedImage,
                     analysis,
                     settings,
+                    apiKey,
                 }),
             })
 
@@ -130,6 +154,10 @@ export default function Dashboard() {
             // Include settings in the result for display
             const resultWithSettings = { ...data, settings }
             setResults(prev => [resultWithSettings, ...prev])
+
+            // Increment usage count
+            const currentUsage = parseInt(localStorage.getItem('plume_api_usage_count') || '0', 10)
+            localStorage.setItem('plume_api_usage_count', (currentUsage + 1).toString())
 
             // Save to Supabase if we have a product ID
             if (currentProductId) {
@@ -245,9 +273,43 @@ export default function Dashboard() {
         try {
             const { getProducts } = await import('@/lib/supabase-utils')
             const products = await getProducts()
-            setProfiles(products)
+            // Sort by order_index if available, otherwise by created_at (handled by DB mostly, but let's ensure)
+            // Assuming DB returns sorted or we sort here. 
+            // Let's sort locally to be safe if DB sort changes
+            const sorted = [...products].sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+            setProfiles(sorted)
         } catch (error) {
             console.error('Error loading profiles:', error)
+        }
+    }
+
+    const handleReorderProfile = async (index: number, direction: 'left' | 'right') => {
+        if (direction === 'left' && index === 0) return
+        if (direction === 'right' && index === profiles.length - 1) return
+
+        const newProfiles = [...profiles]
+        const swapIndex = direction === 'left' ? index - 1 : index + 1
+
+        // Swap
+        const temp = newProfiles[index]
+        newProfiles[index] = newProfiles[swapIndex]
+        newProfiles[swapIndex] = temp
+
+        // Update order indices
+        newProfiles.forEach((p, i) => p.order_index = i)
+
+        setProfiles(newProfiles)
+    }
+
+    const saveProfileOrder = async () => {
+        try {
+            const { updateItemOrder } = await import('@/lib/supabase-utils')
+            const items = profiles.map((p, i) => ({ id: p.id, order_index: i }))
+            await updateItemOrder('products', items)
+            setIsReorderingProfiles(false)
+        } catch (error) {
+            console.error('Error saving order:', error)
+            alert('Failed to save order')
         }
     }
 
@@ -270,41 +332,79 @@ export default function Dashboard() {
                                     <Bookmark className="size-4 lg:size-5 text-green-400" />
                                     Saved Profiles
                                 </h2>
-                                {profiles.length > 0 && (
-                                    <span className="text-[10px] lg:text-xs text-gray-500">{profiles.length} saved</span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {profiles.length > 0 && (
+                                        <>
+                                            {isReorderingProfiles ? (
+                                                <button
+                                                    onClick={saveProfileOrder}
+                                                    className="text-[10px] lg:text-xs bg-green-500/20 text-green-400 hover:bg-green-500/30 px-2 py-1 rounded flex items-center gap-1"
+                                                >
+                                                    <Check className="size-3" /> Done
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setIsReorderingProfiles(true)}
+                                                    className="text-[10px] lg:text-xs text-gray-500 hover:text-white flex items-center gap-1"
+                                                >
+                                                    <GripHorizontal className="size-3" /> Reorder
+                                                </button>
+                                            )}
+                                            <span className="text-[10px] lg:text-xs text-gray-500 border-l border-white/10 pl-2">{profiles.length} saved</span>
+                                        </>
+                                    )}
+                                </div>
                             </div>
                             {profiles.length > 0 ? (
-                                <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar mask-fade-right">
-                                    {profiles.map((profile: any) => (
+                                <ScrollableContainer className="mask-fade-right">
+                                    {profiles.map((profile: any, index: number) => (
                                         <div
                                             key={profile.id}
                                             className="group relative flex-shrink-0 w-20 lg:w-24"
                                         >
                                             <button
-                                                onClick={() => handleLoadProfile(profile)}
-                                                className="w-full aspect-square rounded-lg border border-white/10 overflow-hidden bg-white/5 hover:bg-white/10 hover:border-purple-500/50 transition-all relative"
+                                                onClick={() => !isReorderingProfiles && handleLoadProfile(profile)}
+                                                className={`w-full aspect-square rounded-lg border overflow-hidden transition-all relative ${isReorderingProfiles ? 'cursor-grab active:cursor-grabbing border-white/20' : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50'
+                                                    }`}
                                             >
                                                 <img
                                                     src={profile.image_url}
                                                     alt={profile.name}
-                                                    className="w-full h-full object-cover"
+                                                    className={`w-full h-full object-cover ${isReorderingProfiles ? 'opacity-70' : ''}`}
                                                 />
+                                                {isReorderingProfiles && (
+                                                    <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/40">
+                                                        <div
+                                                            onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'left') }}
+                                                            className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === 0 ? 'opacity-20 pointer-events-none' : ''}`}
+                                                        >
+                                                            <ArrowLeft className="size-3" />
+                                                        </div>
+                                                        <div
+                                                            onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'right') }}
+                                                            className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === profiles.length - 1 ? 'opacity-20 pointer-events-none' : ''}`}
+                                                        >
+                                                            <ArrowRight className="size-3" />
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleDeleteProfile(profile.id, profile.name)
-                                                }}
-                                                className="absolute -top-1 -right-1 p-1 rounded-full bg-red-500/80 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                                title="Delete profile"
-                                            >
-                                                <X className="size-3" />
-                                            </button>
+                                            {!isReorderingProfiles && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleDeleteProfile(profile.id, profile.name)
+                                                    }}
+                                                    className="absolute -top-1 -right-1 p-1 rounded-full bg-red-500/80 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                                                    title="Delete profile"
+                                                >
+                                                    <X className="size-3" />
+                                                </button>
+                                            )}
                                             <p className="mt-1.5 text-[10px] lg:text-xs text-gray-400 text-center truncate">{profile.name}</p>
                                         </div>
                                     ))}
-                                </div>
+                                </ScrollableContainer>
                             ) : (
                                 <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center">
                                     <div className="text-gray-500 text-xs lg:text-sm">No saved profiles yet</div>
@@ -412,6 +512,8 @@ export default function Dashboard() {
                                 isGenerating={isGenerating}
                                 disabled={!analysis}
                                 templates={templates}
+                                folders={folders}
+                                onRefreshTemplates={() => { loadTemplates(); loadFolders(); }}
                                 onDeleteTemplate={handleDeleteTemplate}
                             />
                         </section>

@@ -25,6 +25,9 @@ export default function Header() {
                         <Link href="/gallery" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
                             Gallery
                         </Link>
+                        <Link href="/settings" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
+                            Settings
+                        </Link>
                     </nav>
                 )}
 

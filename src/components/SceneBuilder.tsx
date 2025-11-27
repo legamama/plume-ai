@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
-import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X } from 'lucide-react'
 
 interface SceneBuilderProps {
     onGenerate: (settings: GenerationSettings) => void
     isGenerating: boolean
     disabled: boolean
     templates?: Template[]
+    folders?: any[]
+    onRefreshTemplates?: () => void
     onDeleteTemplate?: (id: string) => void
 }
 
@@ -29,11 +31,14 @@ export interface Template {
     name: string
     prompt: string
     settings: GenerationSettings
+    folder_id?: string
+    order_index?: number
 }
 
 const PRESETS = [
     { id: 'minimalist', name: 'Minimalist Studio', description: 'Clean, soft lighting', icon: Camera, color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/20' },
     { id: 'luxury', name: 'Luxury Marble', description: 'Elegant marble surface', icon: Crown, color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+    { id: 'spa', name: 'Elegant Spa', description: 'Relaxing bathroom vibe', icon: Droplets, color: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/20' },
     { id: 'nature', name: 'Nature Podium', description: 'Stone podium & greenery', icon: Leaf, color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20' },
     { id: 'neon', name: 'Neon Cyberpunk', description: 'Futuristic neon lights', icon: Sparkles, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
     { id: 'cozy', name: 'Cozy Interior', description: 'Warm wooden table', icon: Armchair, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' },
@@ -69,7 +74,82 @@ const MODELS = [
     }
 ]
 
-export default function SceneBuilder({ onGenerate, isGenerating, disabled, templates = [], onDeleteTemplate }: SceneBuilderProps) {
+function TemplateItem({ template, applyTemplate, onDelete, onMove, folders, movingId, setMovingId }: {
+    template: Template,
+    applyTemplate: (t: Template) => void,
+    onDelete?: (id: string) => void,
+    onMove: (tid: string, fid: string | null) => void,
+    folders: any[],
+    movingId: string | null,
+    setMovingId: (id: string | null) => void
+}) {
+    return (
+        <div
+            className="group relative flex items-center gap-3 p-2 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer"
+            onClick={() => applyTemplate(template)}
+        >
+            <div className="size-6 rounded bg-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
+                <Bookmark className="size-3" />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="font-medium text-xs text-gray-200 truncate">{template.name}</div>
+                <div className="text-[9px] text-gray-500 truncate">
+                    {template.settings?.preset}
+                </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                {/* Move Dropdown */}
+                <div className="relative">
+                    <button
+                        onClick={() => setMovingId(movingId === template.id ? null : template.id)}
+                        className={`p-1.5 rounded hover:bg-white/10 ${movingId === template.id ? 'text-purple-400 bg-white/10 opacity-100' : 'text-gray-500 hover:text-white'}`}
+                        title="Move to folder"
+                    >
+                        <FolderOpen className="size-3" />
+                    </button>
+
+                    {movingId === template.id && (
+                        <div className="absolute right-0 top-full mt-1 w-40 bg-gray-900 border border-white/10 rounded-lg shadow-xl z-50 py-1 max-h-48 overflow-y-auto">
+                            <div className="px-2 py-1 text-[10px] text-gray-500 uppercase font-semibold">Move to...</div>
+                            <button
+                                onClick={() => onMove(template.id, null)}
+                                className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-white/10 flex items-center gap-2"
+                            >
+                                <Bookmark className="size-3" /> Root (No Folder)
+                            </button>
+                            {folders.map(f => (
+                                <button
+                                    key={f.id}
+                                    onClick={() => onMove(template.id, f.id)}
+                                    className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-white/10 flex items-center gap-2"
+                                >
+                                    <Folder className="size-3" /> {f.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {onDelete && (
+                    <button
+                        onClick={() => {
+                            if (confirm('Delete this template?')) {
+                                onDelete(template.id)
+                            }
+                        }}
+                        className="p-1.5 rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-colors"
+                    >
+                        <Trash2 className="size-3" />
+                    </button>
+                )}
+            </div>
+        </div>
+    )
+}
+
+export default function SceneBuilder({ onGenerate, isGenerating, disabled, templates = [], folders = [], onRefreshTemplates, onDeleteTemplate }: SceneBuilderProps) {
     const [settings, setSettings] = useState<GenerationSettings>({
         preset: 'minimalist',
         customPrompt: '',
@@ -83,6 +163,48 @@ export default function SceneBuilder({ onGenerate, isGenerating, disabled, templ
         }
     })
 
+    const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
+    const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+    const [newFolderName, setNewFolderName] = useState('')
+    const [isReordering, setIsReordering] = useState(false)
+    const [movingTemplateId, setMovingTemplateId] = useState<string | null>(null)
+
+    const toggleFolder = (folderId: string) => {
+        setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }))
+    }
+
+    const handleCreateFolder = async () => {
+        if (!newFolderName.trim()) return
+        try {
+            const { createTemplateFolder } = await import('@/lib/supabase-utils')
+            await createTemplateFolder(newFolderName)
+            setNewFolderName('')
+            setIsCreatingFolder(false)
+            onRefreshTemplates?.()
+        } catch (error) {
+            console.error('Error creating folder:', error)
+        }
+    }
+
+    const handleMoveTemplate = async (templateId: string, folderId: string | null) => {
+        try {
+            const { moveTemplateToFolder } = await import('@/lib/supabase-utils')
+            await moveTemplateToFolder(templateId, folderId)
+            setMovingTemplateId(null)
+            onRefreshTemplates?.()
+        } catch (error) {
+            console.error('Error moving template:', error)
+        }
+    }
+
+    const handleReorderTemplate = async (template: Template, direction: 'up' | 'down') => {
+        // This is a simplified reorder that swaps indices locally and saves
+        // In a real app, you'd calculate the new index based on neighbors
+        // Here we'll just alert as a placeholder or implement basic swap if we had the full list context easily
+        // For now, let's just show it's possible
+        alert('Reordering not fully implemented in this view. Drag and drop would be better.')
+    }
+
     const handleSubmit = () => {
         onGenerate(settings)
     }
@@ -95,42 +217,94 @@ export default function SceneBuilder({ onGenerate, isGenerating, disabled, templ
 
     return (
         <div className={`space-y-8 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-            {/* Saved Templates */}
-            {templates.length > 0 && (
+            {/* Saved Templates & Folders */}
+            {(templates.length > 0 || folders.length > 0) && (
                 <div className="space-y-3">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                        <Bookmark className="size-3" /> Saved Templates
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                        {templates.map((template) => (
-                            <div
-                                key={template.id}
-                                className="group relative flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer"
-                                onClick={() => applyTemplate(template)}
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                            <Bookmark className="size-3" /> Saved Templates
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setIsCreatingFolder(true)}
+                                className="p-1 hover:bg-white/10 rounded text-gray-400 hover:text-white transition-colors"
+                                title="New Folder"
                             >
-                                <div className="size-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 flex-shrink-0">
-                                    <Bookmark className="size-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="font-medium text-sm text-gray-200 truncate">{template.name}</div>
-                                    <div className="text-[10px] text-gray-500 truncate">
-                                        {template.settings?.preset} • {template.settings?.aspectRatio}
-                                    </div>
-                                </div>
-                                {onDeleteTemplate && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            if (confirm('Delete this template?')) {
-                                                onDeleteTemplate(template.id)
-                                            }
-                                        }}
-                                        className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                <FolderPlus className="size-3.5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {isCreatingFolder && (
+                        <div className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 animate-in fade-in slide-in-from-top-1">
+                            <Folder className="size-4 text-purple-400" />
+                            <input
+                                type="text"
+                                value={newFolderName}
+                                onChange={(e) => setNewFolderName(e.target.value)}
+                                placeholder="Folder Name"
+                                className="bg-transparent border-none text-sm text-white focus:outline-none flex-1 min-w-0"
+                                autoFocus
+                                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                            />
+                            <button onClick={handleCreateFolder} className="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded hover:bg-purple-500/30">Add</button>
+                            <button onClick={() => setIsCreatingFolder(false)} className="text-gray-500 hover:text-white"><X className="size-3.5" /></button>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        {/* Folders */}
+                        {folders.map(folder => {
+                            const folderTemplates = templates.filter(t => t.folder_id === folder.id)
+                            const isExpanded = expandedFolders[folder.id]
+
+                            return (
+                                <div key={folder.id} className="space-y-1">
+                                    <div
+                                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 cursor-pointer group"
+                                        onClick={() => toggleFolder(folder.id)}
                                     >
-                                        <Trash2 className="size-4" />
-                                    </button>
-                                )}
-                            </div>
+                                        {isExpanded ? <ChevronDown className="size-3 text-gray-500" /> : <ChevronRight className="size-3 text-gray-500" />}
+                                        <Folder className={`size-4 ${isExpanded ? 'text-purple-400' : 'text-gray-500'}`} />
+                                        <span className="text-sm text-gray-300 flex-1">{folder.name}</span>
+                                        <span className="text-[10px] text-gray-600">{folderTemplates.length}</span>
+                                    </div>
+
+                                    {isExpanded && (
+                                        <div className="pl-4 space-y-1 border-l border-white/5 ml-2.5">
+                                            {folderTemplates.map(template => (
+                                                <TemplateItem
+                                                    key={template.id}
+                                                    template={template}
+                                                    applyTemplate={applyTemplate}
+                                                    onDelete={onDeleteTemplate}
+                                                    onMove={handleMoveTemplate}
+                                                    folders={folders}
+                                                    movingId={movingTemplateId}
+                                                    setMovingId={setMovingTemplateId}
+                                                />
+                                            ))}
+                                            {folderTemplates.length === 0 && (
+                                                <div className="text-[10px] text-gray-600 p-2 italic">Empty folder</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+
+                        {/* Uncategorized Templates */}
+                        {templates.filter(t => !t.folder_id).map(template => (
+                            <TemplateItem
+                                key={template.id}
+                                template={template}
+                                applyTemplate={applyTemplate}
+                                onDelete={onDeleteTemplate}
+                                onMove={handleMoveTemplate}
+                                folders={folders}
+                                movingId={movingTemplateId}
+                                setMovingId={setMovingTemplateId}
+                            />
                         ))}
                     </div>
                 </div>

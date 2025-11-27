@@ -3,7 +3,7 @@ import { analyzeProductImage } from "@/lib/gemini";
 
 export async function POST(req: Request) {
     try {
-        const { image, mimeType } = await req.json();
+        const { image, mimeType, apiKey } = await req.json();
 
         if (!image || !mimeType) {
             return NextResponse.json(
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
         const imageDataUrl = `data:${mimeType};base64,${image}`;
 
         // Use the utility function with retry logic
-        const analysis = await analyzeProductImage(imageDataUrl);
+        const analysis = await analyzeProductImage(imageDataUrl, apiKey);
 
         return NextResponse.json({ analysis });
     } catch (error: any) {

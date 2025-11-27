@@ -309,3 +309,113 @@ export async function deleteExpiredGenerations() {
         return false
     }
 }
+
+// --- Folder & Ordering Management ---
+
+// Create Template Folder
+export async function createTemplateFolder(name: string) {
+    try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('User not authenticated')
+
+        const { data, error } = await supabase
+            .from('template_folders')
+            .insert({
+                user_id: user.id,
+                name,
+                order_index: 0 // Default to top
+            })
+            .select()
+            .single()
+
+        if (error) throw error
+        return data
+    } catch (error) {
+        console.error('Error creating folder:', error)
+        throw error
+    }
+}
+
+// Get Template Folders
+export async function getTemplateFolders() {
+    try {
+        const { data, error } = await supabase
+            .from('template_folders')
+            .select('*')
+            .order('order_index', { ascending: true })
+            .order('created_at', { ascending: false })
+
+        if (error) throw error
+        return data || []
+    } catch (error) {
+        console.error('Error fetching folders:', error)
+        return []
+    }
+}
+
+// Delete Template Folder
+export async function deleteTemplateFolder(id: string) {
+    try {
+        const { error } = await supabase
+            .from('template_folders')
+            .delete()
+            .eq('id', id)
+
+        if (error) throw error
+        return true
+    } catch (error) {
+        console.error('Error deleting folder:', error)
+        return false
+    }
+}
+
+// Update Template Folder (Rename)
+export async function updateTemplateFolder(id: string, name: string) {
+    try {
+        const { error } = await supabase
+            .from('template_folders')
+            .update({ name })
+            .eq('id', id)
+
+        if (error) throw error
+        return true
+    } catch (error) {
+        console.error('Error updating folder:', error)
+        return false
+    }
+}
+
+// Move Template to Folder
+export async function moveTemplateToFolder(templateId: string, folderId: string | null) {
+    try {
+        const { error } = await supabase
+            .from('templates')
+            .update({ folder_id: folderId })
+            .eq('id', templateId)
+
+        if (error) throw error
+        return true
+    } catch (error) {
+        console.error('Error moving template:', error)
+        return false
+    }
+}
+
+// Update Order (Generic)
+export async function updateItemOrder(table: 'products' | 'templates' | 'template_folders', items: { id: string, order_index: number }[]) {
+    try {
+        // In a real app, use an RPC for batch updates. Here we'll loop (less efficient but works without extra SQL setup)
+        // Or better: use upsert if possible, but upsert requires all fields.
+        // We'll just loop for now as lists are small.
+
+        const updates = items.map(item =>
+            supabase.from(table).update({ order_index: item.order_index }).eq('id', item.id)
+        )
+
+        await Promise.all(updates)
+        return true
+    } catch (error) {
+        console.error(`Error updating order for ${table}:`, error)
+        return false
+    }
+}

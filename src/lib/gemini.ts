@@ -1,11 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 
-const getClient = () => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        throw new Error("API Key not found. Please set the GEMINI_API_KEY environment variable.");
+const getClient = (apiKey?: string) => {
+    const key = apiKey || process.env.GEMINI_API_KEY;
+    if (!key) {
+        throw new Error("API Key not found. Please set the GEMINI_API_KEY environment variable or provide one.");
     }
-    return new GoogleGenAI({ apiKey });
+    return new GoogleGenAI({ apiKey: key });
 };
 
 // Helper to strip the data:image/png;base64, prefix
@@ -44,10 +44,10 @@ const withRetry = async <T>(operation: () => Promise<T>, maxRetries = 3): Promis
     throw lastError;
 };
 
-export const analyzeProductImage = async (imageBase64: string): Promise<string> => {
+export const analyzeProductImage = async (imageBase64: string, apiKey?: string): Promise<string> => {
     return withRetry(async () => {
         try {
-            const ai = getClient();
+            const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(imageBase64);
 
             const response = await ai.models.generateContent({
@@ -93,11 +93,12 @@ export const generateProductScene = async (
     productDescription: string,
     scenePrompt: string,
     model: string,
-    aspectRatio: string
+    aspectRatio: string,
+    apiKey?: string
 ): Promise<{ imageUrl: string, fullPrompt: string }> => {
     return withRetry(async () => {
         try {
-            const ai = getClient();
+            const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(originalImageBase64);
 
             // FIX: Correctly set imageConfig for both supported image generation models.
