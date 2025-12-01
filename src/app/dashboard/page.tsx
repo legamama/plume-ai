@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import ProductUploader from '@/components/ProductUploader'
 import SceneBuilder, { GenerationSettings } from '@/components/SceneBuilder'
@@ -23,6 +23,7 @@ export default function Dashboard() {
     const [templates, setTemplates] = useState<any[]>([])
     const [folders, setFolders] = useState<any[]>([])
     const [isReorderingProfiles, setIsReorderingProfiles] = useState(false)
+    const abortControllerRef = useRef<AbortController | null>(null)
 
     // Load templates and folders on mount
     useEffect(() => {
@@ -127,6 +128,15 @@ export default function Dashboard() {
     const handleGenerate = async (settings: GenerationSettings) => {
         if (!uploadedImage || !analysis) return
 
+        // Cancel any existing request
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+        }
+
+        // Create new controller
+        const controller = new AbortController()
+        abortControllerRef.current = controller
+
         setIsGenerating(true)
         try {
             const apiKey = localStorage.getItem('plume_gemini_api_key')
@@ -142,6 +152,7 @@ export default function Dashboard() {
                     settings,
                     apiKey,
                 }),
+                signal: controller.signal
             })
 
             if (!response.ok) {
@@ -175,10 +186,25 @@ export default function Dashboard() {
                 }
             }
         } catch (error: any) {
+            if (error.name === 'AbortError') {
+                console.log('Generation cancelled')
+                return
+            }
             console.error('Error generating image:', error)
             alert(`Failed to generate image: ${error.message || 'Unknown error'}. Please check console for details.`)
         } finally {
+            if (abortControllerRef.current === controller) {
+                setIsGenerating(false)
+                abortControllerRef.current = null
+            }
+        }
+    }
+
+    const handleCancelGeneration = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
             setIsGenerating(false)
+            abortControllerRef.current = null
         }
     }
 
@@ -531,9 +557,15 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <h3 className="text-xl lg:text-2xl font-semibold text-white mb-3 tracking-tight">Generating Your Image</h3>
-                            <p className="text-gray-400 max-w-md mx-auto text-sm lg:text-lg leading-relaxed">
+                            <p className="text-gray-400 max-w-md mx-auto text-sm lg:text-lg leading-relaxed mb-6">
                                 AI is creating your professional product photo...
                             </p>
+                            <button
+                                onClick={handleCancelGeneration}
+                                className="px-6 py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-white text-sm font-medium transition-all"
+                            >
+                                Cancel Generation
+                            </button>
                         </div>
                     ) : results.length > 0 ? (
                         <ResultCarousel

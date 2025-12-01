@@ -94,7 +94,8 @@ export const generateProductScene = async (
     scenePrompt: string,
     model: string,
     aspectRatio: string,
-    apiKey?: string
+    apiKey?: string,
+    referenceImageBase64?: string | null
 ): Promise<{ imageUrl: string, fullPrompt: string }> => {
     return withRetry(async () => {
         try {
@@ -124,22 +125,35 @@ INSTRUCTIONS:
 3. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
 4. The result should look like a high-end commercial photograph.`;
 
+            const parts: any[] = [
+                {
+                    inlineData: {
+                        mimeType,
+                        data,
+                    },
+                },
+                {
+                    text: fullTextPrompt,
+                },
+            ];
+
+            // Add reference model image if provided
+            if (referenceImageBase64) {
+                const ref = extractBase64Data(referenceImageBase64);
+                parts.unshift({
+                    inlineData: {
+                        mimeType: ref.mimeType,
+                        data: ref.data,
+                    },
+                });
+            }
+
             const response = await ai.models.generateContent({
                 model: model,
                 // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
                 contents: {
                     role: 'user',
-                    parts: [
-                        {
-                            inlineData: {
-                                mimeType,
-                                data,
-                            },
-                        },
-                        {
-                            text: fullTextPrompt,
-                        },
-                    ],
+                    parts: parts,
                 },
                 config: config,
             });

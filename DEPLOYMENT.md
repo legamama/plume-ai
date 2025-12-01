@@ -6,7 +6,7 @@
 2.  Run the following commands in your terminal to push your local code:
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/plume-ai.git
+git remote add origin https://github.com/legamama/plume-ai.git
 git branch -M main
 git push -u origin main
 ```

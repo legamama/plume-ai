@@ -347,8 +347,13 @@ export async function getTemplateFolders() {
 
         if (error) throw error
         return data || []
-    } catch (error) {
-        console.error('Error fetching folders:', error)
+    } catch (error: any) {
+        // If the table doesn't exist yet, just return empty array and warn
+        if (error?.code === '42P01') { // Postgres code for undefined_table
+            console.warn('Template folders table does not exist yet. Please run the migration.')
+            return []
+        }
+        console.error('Error fetching folders:', error.message || error)
         return []
     }
 }

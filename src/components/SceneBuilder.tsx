@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X } from 'lucide-react'
+import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X, User } from 'lucide-react'
+import ModelPlacement from './ModelPlacement'
 
 interface SceneBuilderProps {
     onGenerate: (settings: GenerationSettings) => void
@@ -23,6 +24,12 @@ export interface GenerationSettings {
         text: string
         style: string
         position: string
+    }
+    modelPlacement?: {
+        enabled: boolean
+        referenceImage: string | null
+        prompt: string
+        generateNewModel: boolean
     }
 }
 
@@ -160,6 +167,12 @@ export default function SceneBuilder({ onGenerate, isGenerating, disabled, templ
             text: '',
             style: 'modern',
             position: 'center'
+        },
+        modelPlacement: {
+            enabled: false,
+            referenceImage: null,
+            prompt: '',
+            generateNewModel: false
         }
     })
 
@@ -217,6 +230,52 @@ export default function SceneBuilder({ onGenerate, isGenerating, disabled, templ
 
     return (
         <div className={`space-y-8 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+
+            {/* Mode Selector */}
+            <div className="flex p-1 bg-white/5 rounded-xl border border-white/10">
+                <button
+                    onClick={() => setSettings({ ...settings, modelPlacement: { ...settings.modelPlacement!, enabled: false } })}
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${!settings.modelPlacement?.enabled ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    <LayoutTemplate className="size-3.5" />
+                    Standard Scene
+                </button>
+                <button
+                    onClick={() => setSettings({ ...settings, modelPlacement: { ...settings.modelPlacement!, enabled: true } })}
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${settings.modelPlacement?.enabled ? 'bg-purple-500/20 text-purple-400 shadow-sm border border-purple-500/20' : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    <User className="size-3.5" />
+                    Model Placement
+                </button>
+            </div>
+
+            {/* Model Placement Section */}
+            {settings.modelPlacement?.enabled && (
+                <ModelPlacement
+                    referenceImage={settings.modelPlacement.referenceImage}
+                    placementPrompt={settings.modelPlacement.prompt}
+                    generateNewModel={settings.modelPlacement.generateNewModel}
+                    onImageChange={(img) => setSettings({
+                        ...settings,
+                        modelPlacement: { ...settings.modelPlacement!, referenceImage: img }
+                    })}
+                    onPromptChange={(prompt) => setSettings({
+                        ...settings,
+                        modelPlacement: { ...settings.modelPlacement!, prompt }
+                    })}
+                    onGenerateNewModelChange={(enabled) => setSettings({
+                        ...settings,
+                        modelPlacement: { ...settings.modelPlacement!, generateNewModel: enabled }
+                    })}
+                />
+            )}
+
+            {/* Standard Scene Sections (Hidden when Model Placement is active, or maybe kept? User request implies combining. "combine with selected product profile and custom prompts") */}
+            {/* Let's keep Presets and Custom Prompt available even in Model Placement mode, as they might want to style the scene further. */}
+            {/* Actually, if replacing product in a specific scene, presets might conflict. But "custom prompts" are explicitly mentioned. */}
+
             {/* Saved Templates & Folders */}
             {(templates.length > 0 || folders.length > 0) && (
                 <div className="space-y-3">
