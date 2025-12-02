@@ -22,20 +22,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         // Check active session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null)
-            setLoading(false)
-        })
+        const checkSession = async () => {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession()
+                if (error) throw error
+                setUser(session?.user ?? null)
+            } catch (error: any) {
+                console.error("Auth session check failed:", error)
+                // If token is invalid, clear session
+                if (error?.message?.includes('Refresh Token') || error?.code === 'invalid_grant') {
+                    await supabase.auth.signOut()
+                    setUser(null)
+                }
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        checkSession()
 
         // Listen for auth changes
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null)
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Auth state changed:', event)
+
+            if (event === 'SIGNED_OUT') {
+                setUser(null)
+                router.push('/login')
+            } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                setUser(session?.user ?? null)
+            } else if (event === 'USER_UPDATED') {
+                setUser(session?.user ?? null)
+            }
         })
 
         return () => subscription.unsubscribe()
-    }, [])
+    }, [router])
 
     const signIn = async (email: string, password: string) => {
         const { error } = await supabase.auth.signInWithPassword({

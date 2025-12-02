@@ -9,17 +9,24 @@ import { Bookmark, Sparkles, Settings2, X, Image as ImageIcon, ArrowLeft, ArrowR
 import ProtectedRoute from '@/components/ProtectedRoute'
 import ScrollableContainer from '@/components/ui/ScrollableContainer'
 
+import { useDashboard } from '@/lib/dashboard-context'
+
 export default function Dashboard() {
+    const {
+        uploadedImage, setUploadedImage,
+        analysis, setAnalysis,
+        originalAnalysis, setOriginalAnalysis,
+        results, setResults,
+        currentProductId, setCurrentProductId,
+        sceneSettings, setSceneSettings,
+        resetWorkspace
+    } = useDashboard()
+
     const [isUploading, setIsUploading] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
-    const [analysis, setAnalysis] = useState<string | null>(null)
-    const [originalAnalysis, setOriginalAnalysis] = useState<string | null>(null)
     const [isEditingAnalysis, setIsEditingAnalysis] = useState(false)
-    const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-    const [results, setResults] = useState<any[]>([])
     const [profiles, setProfiles] = useState<any[]>([])
     const [isSaving, setIsSaving] = useState(false)
-    const [currentProductId, setCurrentProductId] = useState<string | null>(null)
     const [templates, setTemplates] = useState<any[]>([])
     const [folders, setFolders] = useState<any[]>([])
     const [isReorderingProfiles, setIsReorderingProfiles] = useState(false)
@@ -264,6 +271,9 @@ export default function Dashboard() {
                     setUploadedImage(base64Data)
                     setAnalysis(profile.analysis_data.description)
                     setResults([]) // Clear previous results
+                    // Update scene settings if profile has them (optional, but good for consistency)
+                    // For now, we keep current settings or reset? User didn't specify.
+                    // Let's keep current settings to allow applying profile to current scene.
                 }
             })
             .catch(error => {
@@ -358,6 +368,19 @@ export default function Dashboard() {
                                     <Bookmark className="size-4 lg:size-5 text-green-400" />
                                     Saved Profiles
                                 </h2>
+                                <button
+                                    onClick={() => {
+                                        if (confirm('Are you sure you want to clear the current workspace?')) {
+                                            resetWorkspace()
+                                        }
+                                    }}
+                                    className="text-[10px] lg:text-xs text-gray-500 hover:text-white flex items-center gap-1"
+                                    title="Reset Workspace"
+                                >
+                                    <Sparkles className="size-3" /> Refresh Workspace
+                                </button>
+                            </div>
+                            <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     {profiles.length > 0 && (
                                         <>
@@ -541,6 +564,8 @@ export default function Dashboard() {
                                 folders={folders}
                                 onRefreshTemplates={() => { loadTemplates(); loadFolders(); }}
                                 onDeleteTemplate={handleDeleteTemplate}
+                                settings={sceneSettings}
+                                onSettingsChange={setSceneSettings}
                             />
                         </section>
                     </div>

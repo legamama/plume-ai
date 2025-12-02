@@ -12,6 +12,9 @@ interface SceneBuilderProps {
     folders?: any[]
     onRefreshTemplates?: () => void
     onDeleteTemplate?: (id: string) => void
+    // Controlled state props
+    settings?: GenerationSettings
+    onSettingsChange?: (settings: GenerationSettings) => void
 }
 
 export interface GenerationSettings {
@@ -156,8 +159,19 @@ function TemplateItem({ template, applyTemplate, onDelete, onMove, folders, movi
     )
 }
 
-export default function SceneBuilder({ onGenerate, isGenerating, disabled, templates = [], folders = [], onRefreshTemplates, onDeleteTemplate }: SceneBuilderProps) {
-    const [settings, setSettings] = useState<GenerationSettings>({
+export default function SceneBuilder({
+    onGenerate,
+    isGenerating,
+    disabled,
+    templates = [],
+    folders = [],
+    onRefreshTemplates,
+    onDeleteTemplate,
+    settings: controlledSettings,
+    onSettingsChange
+}: SceneBuilderProps) {
+    // Local state for uncontrolled usage
+    const [localSettings, setLocalSettings] = useState<GenerationSettings>({
         preset: 'minimalist',
         customPrompt: '',
         aspectRatio: '1:1',
@@ -175,6 +189,17 @@ export default function SceneBuilder({ onGenerate, isGenerating, disabled, templ
             generateNewModel: false
         }
     })
+
+    // Use controlled settings if provided, otherwise local
+    const settings = controlledSettings || localSettings
+
+    const setSettings = (newSettings: GenerationSettings) => {
+        if (onSettingsChange) {
+            onSettingsChange(newSettings)
+        } else {
+            setLocalSettings(newSettings)
+        }
+    }
 
     const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
     const [isCreatingFolder, setIsCreatingFolder] = useState(false)
