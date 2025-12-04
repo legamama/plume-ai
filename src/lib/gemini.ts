@@ -114,16 +114,20 @@ export const generateProductScene = async (
 
             const fullTextPrompt = `Create a professional product photoshoot image.
             
-REFERENCE IMAGE: Use the attached image as the strict visual reference for the product.
+VISUAL PRIORITY:
+1. The PRIMARY source of truth for the product's appearance is the attached REFERENCE IMAGE (the first image provided).
+2. The text description below is SECONDARY, provided only to help understand the product's features.
 
-PRODUCT DETAILS TO PRESERVE (CRITICAL):
+PRODUCT DESCRIPTION (Secondary):
 ${productDescription}
 
-INSTRUCTIONS:
-1. Place the exact product shown in the reference image into the following scene: "${scenePrompt}".
-2. DO NOT change the product's shape, text, logos, or colors. The product branding must remain sharp and legible.
-3. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
-4. The result should look like a high-end commercial photograph.`;
+CRITICAL INSTRUCTIONS:
+1. You must reproduce the product from the reference image EXACTLY. Do not redesign it.
+2. Do NOT change the product's shape, text, logos, fonts, or colors. The product branding must remain sharp, legible, and identical to the reference.
+3. If the text description conflicts with the visual reference, IGNORE the text and follow the image.
+4. Place this exact product into the following scene: "${scenePrompt}".
+5. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
+6. The result should look like a high-end commercial photograph.`;
 
             const parts: any[] = [
                 {

@@ -169,12 +169,8 @@ export async function saveGeneration(
             .single()
 
         if (error) {
-            console.error('Generation save error details:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
-            })
+            console.error('Generation save error details:', JSON.stringify(error, null, 2))
+            console.error('Full error object:', error)
             throw error
         }
 
