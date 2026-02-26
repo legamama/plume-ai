@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getGenerations, deleteGeneration } from '@/lib/supabase-utils'
 import Image from 'next/image'
-import { Download, Trash2, Clock, Package, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import { Download, Trash2, Clock, Package, ChevronDown, ChevronUp, Sparkles, X, ChevronLeft, ChevronRight, Share2, Info } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 interface Generation {
@@ -37,8 +37,9 @@ function GalleryContent() {
         setLoading(false)
     }
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Delete this generated image?')) return
+    const handleDelete = async (id: string, e?: React.MouseEvent) => {
+        e?.stopPropagation()
+        if (!confirm('Are you sure you want to delete this masterpiece?')) return
 
         const success = await deleteGeneration(id)
         if (success) {
@@ -49,8 +50,20 @@ function GalleryContent() {
         }
     }
 
-    const handleDownload = async (imageUrl: string, filename: string) => {
+    const handleDownload = async (imageUrl: string, baseFilename: string, e?: React.MouseEvent) => {
+        e?.stopPropagation()
         try {
+            let ext = 'png';
+            try {
+                const urlObj = new URL(imageUrl);
+                const pathExt = urlObj.pathname.split('.').pop()?.toLowerCase();
+                if (pathExt && ['jpg', 'jpeg', 'png', 'webp', 'heic'].includes(pathExt)) {
+                    ext = pathExt;
+                }
+            } catch (err) { }
+            if (ext === 'jpeg') ext = 'jpg';
+            const filename = `${baseFilename}.${ext}`;
+
             const response = await fetch(imageUrl)
             const blob = await response.blob()
             const url = window.URL.createObjectURL(blob)
@@ -73,7 +86,8 @@ function GalleryContent() {
         return days
     }
 
-    const toggleExpanded = (id: string) => {
+    const toggleExpanded = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation()
         setExpandedCards(prev => {
             const newSet = new Set(prev)
             if (newSet.has(id)) {
@@ -85,28 +99,61 @@ function GalleryContent() {
         })
     }
 
+    const navigateImage = (direction: 'next' | 'prev', e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!selectedImage) return
+        const currentIndex = generations.findIndex(g => g.id === selectedImage.id)
+        if (direction === 'prev' && currentIndex > 0) {
+            setSelectedImage(generations[currentIndex - 1])
+        } else if (direction === 'next' && currentIndex < generations.length - 1) {
+            setSelectedImage(generations[currentIndex + 1])
+        }
+    }
+
     return (
-        <div className="min-h-screen bg-black text-white">
-            <div className="container mx-auto px-4 lg:px-6 py-8">
-                <div className="mb-8">
-                    <h1 className="text-2xl lg:text-3xl font-bold mb-2">Gallery</h1>
-                    <p className="text-gray-400 text-sm lg:text-base">
-                        All your generated images (auto-delete after 30 days)
-                    </p>
+        <div className="min-h-screen bg-[#050505] text-white selection:bg-purple-500/30">
+            {/* Background Effects */}
+            <div className="fixed inset-0 pointer-events-none overflow-hidden h-screen z-0">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/10 rounded-full blur-[120px]" />
+            </div>
+
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10">
+                {/* Header section */}
+                <div className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div className="space-y-2">
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight">
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-fuchsia-300 to-blue-400">
+                                Your Gallery
+                            </span>
+                        </h1>
+                        <p className="text-gray-400 text-sm sm:text-base max-w-xl leading-relaxed">
+                            A showcase of your AI generated product photography. Assets automatically expire after 30 days to free up space.
+                        </p>
+                    </div>
                 </div>
 
+                {/* Content */}
                 {loading ? (
-                    <div className="flex items-center justify-center h-64">
-                        <div className="size-12 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                    <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
+                        <div className="relative size-16">
+                            <div className="absolute inset-0 rounded-full border-t-2 border-purple-500 animate-spin" />
+                            <div className="absolute inset-2 rounded-full border-r-2 border-blue-400 animate-spin border-opacity-60" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+                        </div>
+                        <p className="text-purple-300/60 text-sm animate-pulse font-medium tracking-wide">Loading masterpiece archive...</p>
                     </div>
                 ) : generations.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-64 border border-dashed border-white/10 rounded-2xl">
-                        <Package className="size-16 text-gray-600 mb-4" />
-                        <p className="text-gray-500 text-lg">No generated images yet</p>
-                        <p className="text-gray-600 text-sm mt-2">Create some in the dashboard!</p>
+                    <div className="flex flex-col items-center justify-center min-h-[40vh] bg-white/[0.02] border border-white/5 rounded-3xl backdrop-blur-sm p-8 text-center ring-1 ring-white/5 shadow-2xl">
+                        <div className="size-20 rounded-full bg-white/5 flex items-center justify-center mb-6 ring-1 ring-white/10 shadow-inner">
+                            <Sparkles className="size-8 text-purple-400" />
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-semibold mb-2 text-white">Your Canvas is Empty</h3>
+                        <p className="text-gray-400 text-sm sm:text-base max-w-sm mb-6">
+                            Head back to the dashboard to generate your first breathtaking product photo using AI.
+                        </p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
                         {generations.map((gen) => {
                             const daysRemaining = getDaysRemaining(gen.expires_at)
                             const isExpanded = expandedCards.has(gen.id)
@@ -114,119 +161,138 @@ function GalleryContent() {
                             return (
                                 <div
                                     key={gen.id}
-                                    className="group relative rounded-xl overflow-hidden border border-white/10 bg-white/5 hover:border-purple-500/50 transition-all"
+                                    className="group flex flex-col relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] hover:border-purple-500/40 transition-all duration-500 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] focus-within:ring-2 focus-within:ring-purple-500/50"
                                 >
+                                    {/* Image Container */}
                                     <div
-                                        className="aspect-square relative cursor-pointer"
+                                        className="aspect-[4/5] sm:aspect-square relative cursor-pointer overflow-hidden bg-black/40"
                                         onClick={() => setSelectedImage(gen)}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label="View fullscreen image"
                                     >
                                         <Image
                                             src={gen.image_url}
-                                            alt="Generated image"
+                                            alt={gen.prompt || "Generated image"}
                                             fill
-                                            className="object-cover"
+                                            className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
 
-                                    <div className="p-3 lg:p-4 space-y-3">
-                                        <div className="flex items-center justify-between text-xs">
-                                            <div className="flex items-center gap-1.5 text-gray-400">
-                                                <Clock className="size-3" />
-                                                <span>{daysRemaining} days left</span>
+                                        {/* Hover Overlay Desktop */}
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:flex flex-col justify-between p-4">
+                                            {/* Top row controls */}
+                                            <div className="flex justify-between items-start">
+                                                <div className="bg-black/50 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 flex items-center gap-1.5 text-[10px] font-medium text-purple-200">
+                                                    <Clock className="size-3" />
+                                                    {daysRemaining}d
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={(e) => handleDownload(gen.image_url, `plume-${gen.id}`, e)}
+                                                        className="size-8 rounded-full bg-black/50 hover:bg-white/20 backdrop-blur-md border border-white/10 transition-colors flex items-center justify-center text-white"
+                                                        title="Download"
+                                                    >
+                                                        <Download className="size-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleDelete(gen.id, e)}
+                                                        className="size-8 rounded-full bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md border border-red-500/30 transition-colors flex items-center justify-center text-red-200"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 className="size-4" />
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => handleDownload(gen.image_url, `plume-${gen.id}.png`)}
-                                                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                                    title="Download"
-                                                >
-                                                    <Download className="size-3.5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(gen.id)}
-                                                    className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 transition-colors text-red-400"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 className="size-3.5" />
-                                                </button>
+                                            {/* Bottom row view prompt cue */}
+                                            <div className="text-center">
+                                                <span className="text-xs font-medium text-white/80 bg-black/50 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
+                                                    Click to expand
+                                                </span>
                                             </div>
                                         </div>
 
-                                        <p className={`text-xs lg:text-sm text-gray-400 ${isExpanded ? '' : 'line-clamp-2'}`}>
-                                            {gen.prompt}
-                                        </p>
+                                        {/* Mobile Always-on badges */}
+                                        <div className="absolute top-3 left-3 sm:hidden">
+                                            <div className="bg-black/60 shadow-lg backdrop-blur-md px-2 py-1 rounded-md border border-white/10 flex items-center gap-1 text-[10px] font-medium text-purple-200">
+                                                <Clock className="size-3" />
+                                                {daysRemaining}d
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                        {/* Expandable Details */}
-                                        {isExpanded && (
-                                            <div className="space-y-2 pt-2 border-t border-white/10 animate-in slide-in-from-top-2 fade-in duration-200">
-                                                <div className="flex items-center gap-2 text-xs">
-                                                    <Sparkles className="size-3 text-purple-400" />
-                                                    <span className="text-gray-500">Generation Details</span>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                                    <div className="bg-white/5 px-2 py-1.5 rounded-md border border-white/5">
-                                                        <div className="text-gray-500 mb-0.5">Preset</div>
-                                                        <div className="text-white font-medium">{gen.settings?.preset || 'N/A'}</div>
-                                                    </div>
-                                                    <div className="bg-white/5 px-2 py-1.5 rounded-md border border-white/5">
-                                                        <div className="text-gray-500 mb-0.5">Ratio</div>
-                                                        <div className="text-white font-medium">{gen.settings?.aspectRatio || 'N/A'}</div>
-                                                    </div>
-                                                    <div className="bg-white/5 px-2 py-1.5 rounded-md border border-white/5 col-span-2">
-                                                        <div className="text-gray-500 mb-0.5">Model</div>
-                                                        <div className="text-white font-medium truncate">{gen.settings?.model || 'N/A'}</div>
-                                                    </div>
-                                                    {gen.settings?.textOverlay?.enabled && (
-                                                        <div className="bg-purple-500/10 px-2 py-1.5 rounded-md border border-purple-500/20 col-span-2">
-                                                            <div className="text-purple-400 mb-0.5">Text Overlay</div>
-                                                            <div className="text-white font-medium">{gen.settings.textOverlay.text}</div>
-                                                            <div className="text-gray-400 text-[9px] mt-1">
-                                                                {gen.settings.textOverlay.style} • {gen.settings.textOverlay.position}
-                                                            </div>
+                                    {/* Info Section */}
+                                    <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between gap-4">
+                                        <div className="space-y-3">
+                                            {/* Prompt Preview */}
+                                            <div className={`${isExpanded ? 'max-h-32 overflow-y-auto pr-2' : ''}`}>
+                                                <p className={`text-sm text-gray-300 leading-relaxed ${isExpanded ? '' : 'line-clamp-2'}`}>
+                                                    {gen.prompt}
+                                                </p>
+                                            </div>
+
+                                            {/* Expandable Details */}
+                                            {isExpanded && (
+                                                <div className="space-y-3 pt-3 mt-3 border-t border-white/10 animate-in slide-in-from-top-2 fade-in duration-300">
+                                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                                        <div className="bg-white/5 p-2 rounded-lg border border-white/[0.05]">
+                                                            <div className="text-gray-500 mb-1 text-[10px] uppercase tracking-wider font-semibold">Preset</div>
+                                                            <div className="text-gray-200 font-medium truncate">{gen.settings?.preset || 'Custom'}</div>
                                                         </div>
-                                                    )}
+                                                        <div className="bg-white/5 p-2 rounded-lg border border-white/[0.05]">
+                                                            <div className="text-gray-500 mb-1 text-[10px] uppercase tracking-wider font-semibold">Aspect</div>
+                                                            <div className="text-gray-200 font-medium truncate">{gen.settings?.aspectRatio || '1:1'}</div>
+                                                        </div>
+                                                        <div className="bg-white/5 p-2 rounded-lg border border-white/[0.05] col-span-2">
+                                                            <div className="text-gray-500 mb-1 text-[10px] uppercase tracking-wider font-semibold">Model</div>
+                                                            <div className="text-gray-200 font-medium truncate">{gen.settings?.model || 'Auto'}</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="text-[10px] text-gray-500">
-                                                    Created: {new Date(gen.created_at).toLocaleString()}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Expand/Collapse Button */}
-                                        <button
-                                            onClick={() => toggleExpanded(gen.id)}
-                                            className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-white"
-                                        >
-                                            {isExpanded ? (
-                                                <>
-                                                    <ChevronUp className="size-3.5" />
-                                                    Show Less
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <ChevronDown className="size-3.5" />
-                                                    Show Details
-                                                </>
                                             )}
-                                        </button>
+                                        </div>
 
-                                        {gen.products && (
-                                            <div className="flex items-center gap-2 pt-2 border-t border-white/10">
-                                                <div className="size-8 rounded overflow-hidden flex-shrink-0">
-                                                    <Image
-                                                        src={gen.products.image_url}
-                                                        alt={gen.products.name}
-                                                        width={32}
-                                                        height={32}
-                                                        className="object-cover"
-                                                    />
-                                                </div>
-                                                <span className="text-xs text-gray-500 truncate">
-                                                    {gen.products.name}
-                                                </span>
+                                        {/* Footer area of card */}
+                                        <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                {gen.products && (
+                                                    <>
+                                                        <div className="size-6 rounded bg-white/10 overflow-hidden flex-shrink-0 relative ring-1 ring-white/10">
+                                                            <Image
+                                                                src={gen.products.image_url}
+                                                                alt={gen.products.name}
+                                                                fill
+                                                                className="object-cover"
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-medium text-gray-400 truncate pr-2">
+                                                            {gen.products.name}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </div>
-                                        )}
+
+                                            {/* Mobile Actions (Visible mainly on mobile) */}
+                                            <div className="flex items-center gap-1 sm:hidden">
+                                                <button onClick={(e) => handleDownload(gen.image_url, `plume-${gen.id}`, e)} className="p-2 text-gray-400 hover:text-white bg-white/5 rounded-lg active:scale-95 transition-transform">
+                                                    <Download className="size-4" />
+                                                </button>
+                                                <button onClick={(e) => handleDelete(gen.id, e)} className="p-2 text-gray-400 hover:text-red-400 bg-white/5 rounded-lg active:scale-95 transition-transform">
+                                                    <Trash2 className="size-4" />
+                                                </button>
+                                                <button onClick={(e) => toggleExpanded(gen.id, e)} className="p-2 text-purple-400 bg-purple-500/10 rounded-lg active:scale-95 transition-transform">
+                                                    {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                                                </button>
+                                            </div>
+
+                                            {/* Desktop Expand Toggle */}
+                                            <button
+                                                onClick={(e) => toggleExpanded(gen.id, e)}
+                                                className="hidden sm:flex items-center justify-center p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                                                title={isExpanded ? "Show Less" : "Show Details"}
+                                            >
+                                                {isExpanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )
@@ -235,160 +301,166 @@ function GalleryContent() {
                 )}
             </div>
 
-            {/* Fullscreen Modal */}
+            {/* Fullscreen Modal Restyled */}
             {selectedImage && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center backdrop-blur-md animate-in fade-in duration-200"
+                    className="fixed inset-0 z-[100] bg-black/95 sm:bg-black/90 sm:backdrop-blur-xl flex flex-col justify-between animate-in fade-in zoom-in-95 duration-200"
                     onClick={() => setSelectedImage(null)}
                 >
-                    {/* Close Button */}
-                    <button
-                        onClick={() => setSelectedImage(null)}
-                        className="absolute top-6 right-6 p-3 rounded-full bg-black/50 border border-white/10 text-white hover:bg-white/10 transition-all z-50 group"
-                    >
-                        <svg className="size-6 group-hover:rotate-90 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-
-                    {/* Navigation Buttons */}
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            const currentIndex = generations.findIndex(g => g.id === selectedImage.id)
-                            if (currentIndex > 0) setSelectedImage(generations[currentIndex - 1])
-                        }}
-                        disabled={generations.findIndex(g => g.id === selectedImage.id) === 0}
-                        className="absolute left-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/50 border border-white/10 text-white hover:bg-white/10 transition-all disabled:opacity-0 disabled:pointer-events-none z-50 group"
-                    >
-                        <svg className="size-8 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            const currentIndex = generations.findIndex(g => g.id === selectedImage.id)
-                            if (currentIndex < generations.length - 1) setSelectedImage(generations[currentIndex + 1])
-                        }}
-                        disabled={generations.findIndex(g => g.id === selectedImage.id) === generations.length - 1}
-                        className="absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/50 border border-white/10 text-white hover:bg-white/10 transition-all disabled:opacity-0 disabled:pointer-events-none z-50 group"
-                    >
-                        <svg className="size-8 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-
-                    {/* Main Image */}
-                    <div className="relative w-full h-full p-8 md:p-20 flex items-center justify-center">
-                        <div className="relative w-full h-full max-w-7xl">
-                            <Image
-                                src={selectedImage.image_url}
-                                alt="Generated image"
-                                fill
-                                className="object-contain drop-shadow-2xl"
-                                onClick={(e) => e.stopPropagation()}
-                            />
+                    {/* Top Bar (Mobile friendly) */}
+                    <div className="flex items-center justify-between p-4 sm:p-6 sm:absolute sm:top-0 sm:left-0 sm:right-0 sm:z-50 bg-gradient-to-b from-black/80 to-transparent">
+                        <div className="flex items-center gap-3">
+                            {selectedImage.products && (
+                                <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+                                    <div className="size-6 rounded-sm overflow-hidden relative">
+                                        <Image src={selectedImage.products.image_url} alt="product" fill className="object-cover" />
+                                    </div>
+                                    <span className="text-xs font-semibold text-white/90 truncate max-w-[120px] sm:max-w-[200px]">
+                                        {selectedImage.products.name}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={(e) => handleDownload(selectedImage.image_url, `plume-${selectedImage.id}`, e)}
+                                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-md border border-white/10"
+                            >
+                                <Download className="size-4 sm:size-5" />
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    handleDelete(selectedImage.id, e)
+                                }}
+                                className="p-2.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-200 transition-colors backdrop-blur-md border border-red-500/20"
+                            >
+                                <Trash2 className="size-4 sm:size-5" />
+                            </button>
+                            <div className="w-px h-6 bg-white/20 mx-1"></div>
+                            <button
+                                onClick={() => setSelectedImage(null)}
+                                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors backdrop-blur-md border border-white/10"
+                            >
+                                <X className="size-4 sm:size-5" />
+                            </button>
                         </div>
                     </div>
 
-                    {/* Info Panel */}
+                    {/* Main Image Area with Navigation overlay */}
+                    <div className="relative flex-1 flex items-center justify-center overflow-hidden w-full px-0 sm:px-16" onClick={(e) => e.stopPropagation()}>
+                        {/* Prev Button Desktop */}
+                        <button
+                            onClick={(e) => navigateImage('prev', e)}
+                            disabled={generations.findIndex(g => g.id === selectedImage.id) === 0}
+                            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full bg-black/40 hover:bg-black/80 border border-white/10 text-white transition-all disabled:opacity-0 disabled:pointer-events-none z-50 group backdrop-blur-md hidden sm:block"
+                        >
+                            <ChevronLeft className="size-6 sm:size-8 group-hover:-translate-x-1 transition-transform" />
+                        </button>
+
+                        {/* Main Image Container */}
+                        <div className="relative w-full h-[85vh] sm:h-full max-w-6xl mx-auto flex items-center justify-center selection:bg-transparent touch-pan-y">
+                            <Image
+                                src={selectedImage.image_url}
+                                alt="Generated full image"
+                                fill
+                                className="object-contain drop-shadow-2xl sm:p-4"
+                                priority
+                                onClick={(e) => {
+                                    // On mobile, tap on image could expand details or close. For now, stopping prop to keep open.
+                                    e.stopPropagation()
+                                    setFullscreenDetailsExpanded(!fullscreenDetailsExpanded)
+                                }}
+                            />
+                        </div>
+
+                        {/* Next Button Desktop */}
+                        <button
+                            onClick={(e) => navigateImage('next', e)}
+                            disabled={generations.findIndex(g => g.id === selectedImage.id) === generations.length - 1}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full bg-black/40 hover:bg-black/80 border border-white/10 text-white transition-all disabled:opacity-0 disabled:pointer-events-none z-50 group backdrop-blur-md hidden sm:block"
+                        >
+                            <ChevronRight className="size-6 sm:size-8 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </div>
+
+                    {/* Mobile Swipe / Nav overlay indicators - simplified to bottom sheet style */}
                     <div
-                        className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-20 pb-6 px-4 md:px-8 z-40"
+                        className={`bg-black/80 backdrop-blur-2xl border-t border-white/10 transition-all duration-300 ease-in-out ${fullscreenDetailsExpanded ? 'max-h-[60vh] overflow-y-auto' : 'max-h-24 sm:max-h-32'}`}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="max-w-5xl mx-auto">
-                            <div className="flex flex-col gap-4">
-                                {/* Main Info Row */}
-                                <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-4">
-                                    <div className="flex-1 space-y-2">
-                                        <h3 className="text-base md:text-lg font-medium text-white line-clamp-1">
-                                            {selectedImage.products?.name || 'Generated Image'}
-                                        </h3>
-                                        <p className={`text-xs md:text-sm text-gray-300 max-w-2xl ${fullscreenDetailsExpanded ? '' : 'line-clamp-2'}`}>
+                        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-12 py-4">
+                            {/* Drag handle for mobile */}
+                            <div
+                                className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-4 sm:hidden flex-shrink-0"
+                                onClick={() => setFullscreenDetailsExpanded(!fullscreenDetailsExpanded)}
+                            />
+
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <h3
+                                        className="text-white/90 font-medium text-sm sm:text-lg mb-2 flex items-center gap-2 cursor-pointer w-fit"
+                                        onClick={() => setFullscreenDetailsExpanded(!fullscreenDetailsExpanded)}
+                                    >
+                                        <Info className="size-4 text-purple-400 hidden sm:block" /> Prompt Details
+                                    </h3>
+                                    <div
+                                        className={`${fullscreenDetailsExpanded ? 'max-h-32 overflow-y-auto pr-2' : 'overflow-hidden cursor-pointer'}`}
+                                        onClick={!fullscreenDetailsExpanded ? () => setFullscreenDetailsExpanded(true) : undefined}
+                                    >
+                                        <p className={`text-gray-400 text-xs sm:text-sm leading-relaxed ${fullscreenDetailsExpanded ? '' : 'line-clamp-1 sm:line-clamp-2'}`}>
                                             {selectedImage.prompt}
                                         </p>
                                     </div>
+                                </div>
+                                <button
+                                    className="sm:hidden p-2 bg-white/5 rounded-full border border-white/10 flex-shrink-0"
+                                    onClick={() => setFullscreenDetailsExpanded(!fullscreenDetailsExpanded)}
+                                >
+                                    {fullscreenDetailsExpanded ? <ChevronDown className="size-5 text-gray-300" /> : <ChevronUp className="size-5 text-gray-300" />}
+                                </button>
+                            </div>
 
-                                    <div className="flex gap-3 flex-shrink-0">
+                            {/* Expanded Details bottom section */}
+                            {fullscreenDetailsExpanded && (
+                                <div className="mt-6 pt-6 border-t border-white/10 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                        <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-semibold">Created</div>
+                                            <div className="text-xs sm:text-sm text-gray-200">{new Date(selectedImage.created_at).toLocaleDateString()}</div>
+                                        </div>
+                                        <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-semibold">Aspect Ratio</div>
+                                            <div className="text-xs sm:text-sm text-gray-200">{selectedImage.settings?.aspectRatio || '1:1'}</div>
+                                        </div>
+                                        <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-semibold">Preset</div>
+                                            <div className="text-xs sm:text-sm text-gray-200">{selectedImage.settings?.preset || 'None'}</div>
+                                        </div>
+                                        <div className="bg-white/5 rounded-xl p-3 border border-white/5">
+                                            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1 font-semibold">Model Engine</div>
+                                            <div className="text-xs sm:text-sm text-gray-200 truncate">{selectedImage.settings?.model || 'Auto'}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile Navigation controls */}
+                                    <div className="flex sm:hidden mt-6 gap-4 justify-between pt-4 border-t border-white/5">
                                         <button
-                                            onClick={() => handleDownload(selectedImage.image_url, `plume-${selectedImage.id}.png`)}
-                                            className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-white text-black font-medium hover:bg-gray-200 transition-colors flex items-center gap-2 shadow-lg shadow-white/10 text-sm"
+                                            onClick={(e) => navigateImage('prev', e)}
+                                            disabled={generations.findIndex(g => g.id === selectedImage.id) === 0}
+                                            className="px-6 py-3 rounded-xl bg-white/10 text-white disabled:opacity-30 font-medium text-sm flex items-center gap-2"
                                         >
-                                            <Download className="size-4" />
-                                            <span className="hidden sm:inline">Download</span>
+                                            <ChevronLeft className="size-4" /> Prev
                                         </button>
                                         <button
-                                            onClick={() => {
-                                                if (confirm('Delete this image?')) {
-                                                    handleDelete(selectedImage.id)
-                                                    setSelectedImage(null)
-                                                }
-                                            }}
-                                            className="px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 font-medium transition-colors flex items-center gap-2 text-sm"
+                                            onClick={(e) => navigateImage('next', e)}
+                                            disabled={generations.findIndex(g => g.id === selectedImage.id) === generations.length - 1}
+                                            className="px-6 py-3 rounded-xl bg-white/10 text-white disabled:opacity-30 font-medium text-sm flex items-center gap-2"
                                         >
-                                            <Trash2 className="size-4" />
-                                            <span className="hidden sm:inline">Delete</span>
+                                            Next <ChevronRight className="size-4" />
                                         </button>
                                     </div>
                                 </div>
-
-                                {/* Expandable Details */}
-                                {fullscreenDetailsExpanded && (
-                                    <div className="space-y-3 animate-in slide-in-from-bottom-2 fade-in duration-200">
-                                        <div className="flex items-center gap-2 text-xs">
-                                            <Sparkles className="size-3 text-purple-400" />
-                                            <span className="text-gray-400">Generation Details</span>
-                                        </div>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                            <div className="bg-white/5 px-3 py-2 rounded-lg border border-white/5">
-                                                <div className="text-[10px] text-gray-500 mb-1">Preset</div>
-                                                <div className="text-sm text-white font-medium">{selectedImage.settings?.preset || 'N/A'}</div>
-                                            </div>
-                                            <div className="bg-white/5 px-3 py-2 rounded-lg border border-white/5">
-                                                <div className="text-[10px] text-gray-500 mb-1">Aspect Ratio</div>
-                                                <div className="text-sm text-white font-medium">{selectedImage.settings?.aspectRatio || 'N/A'}</div>
-                                            </div>
-                                            <div className="bg-white/5 px-3 py-2 rounded-lg border border-white/5 col-span-2">
-                                                <div className="text-[10px] text-gray-500 mb-1">Model</div>
-                                                <div className="text-sm text-white font-medium truncate">{selectedImage.settings?.model || 'N/A'}</div>
-                                            </div>
-                                            {selectedImage.settings?.textOverlay?.enabled && (
-                                                <div className="bg-purple-500/10 px-3 py-2 rounded-lg border border-purple-500/20 col-span-2 md:col-span-4">
-                                                    <div className="text-[10px] text-purple-400 mb-1">Text Overlay</div>
-                                                    <div className="text-sm text-white font-medium mb-1">{selectedImage.settings.textOverlay.text}</div>
-                                                    <div className="text-[10px] text-gray-400">
-                                                        {selectedImage.settings.textOverlay.style} • {selectedImage.settings.textOverlay.position}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                                            <Clock className="size-3" />
-                                            Created: {new Date(selectedImage.created_at).toLocaleString()}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Expand/Collapse Button */}
-                                <button
-                                    onClick={() => setFullscreenDetailsExpanded(!fullscreenDetailsExpanded)}
-                                    className="w-full py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-white"
-                                >
-                                    {fullscreenDetailsExpanded ? (
-                                        <>
-                                            <ChevronUp className="size-3.5" />
-                                            Show Less
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ChevronDown className="size-3.5" />
-                                            Show Details
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+                            )}
                         </div>
                     </div>
                 </div>

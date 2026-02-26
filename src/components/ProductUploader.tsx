@@ -7,11 +7,14 @@ import Image from 'next/image'
 interface ProductUploaderProps {
     onUpload: (file: File) => void
     isUploading: boolean
+    previewUrl?: string | null
+    onClear?: () => void
 }
 
-export default function ProductUploader({ onUpload, isUploading }: ProductUploaderProps) {
+export default function ProductUploader({ onUpload, isUploading, previewUrl, onClear }: ProductUploaderProps) {
     const [dragActive, setDragActive] = useState(false)
-    const [preview, setPreview] = useState<string | null>(null)
+    const [localPreview, setLocalPreview] = useState<string | null>(null)
+    const displayPreview = previewUrl || localPreview
 
     const handleDrag = useCallback((e: React.DragEvent) => {
         e.preventDefault()
@@ -44,20 +47,21 @@ export default function ProductUploader({ onUpload, isUploading }: ProductUpload
 
     const handleFile = (file: File) => {
         const objectUrl = URL.createObjectURL(file)
-        setPreview(objectUrl)
+        setLocalPreview(objectUrl)
         onUpload(file)
     }
 
     const clearFile = () => {
-        setPreview(null)
+        setLocalPreview(null)
+        if (onClear) onClear()
     }
 
     return (
         <div className="w-full">
-            {preview ? (
+            {displayPreview ? (
                 <div className="relative rounded-2xl overflow-hidden border border-white/10 aspect-square group bg-black/40">
                     <Image
-                        src={preview}
+                        src={displayPreview}
                         alt="Product preview"
                         fill
                         className={`object-contain p-4 transition-all duration-500 ${isUploading ? 'scale-95 opacity-50' : 'scale-100'}`}
@@ -96,7 +100,7 @@ export default function ProductUploader({ onUpload, isUploading }: ProductUpload
                     <button
                         onClick={clearFile}
                         disabled={isUploading}
-                        className="absolute top-3 right-3 p-2 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/80 disabled:opacity-0 backdrop-blur-sm"
+                        className="absolute top-3 right-3 p-2 rounded-full bg-black/60 text-white opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all hover:bg-red-500/80 disabled:opacity-0 backdrop-blur-sm shadow-lg"
                     >
                         <X className="size-4" />
                     </button>

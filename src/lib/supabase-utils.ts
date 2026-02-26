@@ -3,13 +3,15 @@ import { supabase } from './supabase'
 // Upload image to Supabase Storage
 export async function uploadImage(file: Blob, folder: 'products' | 'generations'): Promise<string | null> {
     try {
-        const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`
+        const mimeType = file.type || 'image/jpeg';
+        const ext = mimeType.split('/')[1] === 'jpeg' ? 'jpg' : mimeType.split('/')[1] || 'jpg';
+        const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
         const filePath = `${folder}/${filename}`
 
         const { data, error } = await supabase.storage
             .from(folder)
             .upload(filePath, file, {
-                contentType: 'image/png',
+                contentType: mimeType,
                 cacheControl: '3600',
             })
 

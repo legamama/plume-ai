@@ -5,7 +5,7 @@ import Image from 'next/image'
 import ProductUploader from '@/components/ProductUploader'
 import SceneBuilder, { GenerationSettings } from '@/components/SceneBuilder'
 import ResultCarousel from '@/components/ResultCarousel'
-import { Bookmark, Sparkles, Settings2, X, Image as ImageIcon, ArrowLeft, ArrowRight, Check, GripHorizontal } from 'lucide-react'
+import { Bookmark, Sparkles, Settings2, X, Image as ImageIcon, ArrowLeft, ArrowRight, Check, GripHorizontal, LayoutGrid, List } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import ScrollableContainer from '@/components/ui/ScrollableContainer'
 
@@ -30,6 +30,8 @@ export default function Dashboard() {
     const [templates, setTemplates] = useState<any[]>([])
     const [folders, setFolders] = useState<any[]>([])
     const [isReorderingProfiles, setIsReorderingProfiles] = useState(false)
+    const [mobileTab, setMobileTab] = useState<'config' | 'results'>('config')
+    const [profilesViewMode, setProfilesViewMode] = useState<'scroll' | 'grid'>('scroll')
     const abortControllerRef = useRef<AbortController | null>(null)
 
     // Load templates and folders on mount
@@ -145,6 +147,7 @@ export default function Dashboard() {
         abortControllerRef.current = controller
 
         setIsGenerating(true)
+        setMobileTab('results') // Switch to results tab automatically on mobile
         try {
             const apiKey = localStorage.getItem('plume_gemini_api_key')
 
@@ -357,9 +360,39 @@ export default function Dashboard() {
     return (
         <ProtectedRoute>
             <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-4rem)] lg:overflow-hidden bg-black min-h-[calc(100vh-4rem)]">
+
+                {/* Mobile Tabs */}
+                <div className="lg:hidden flex border-b border-white/10 bg-black/80 backdrop-blur-xl sticky top-0 z-50">
+                    <button
+                        onClick={() => setMobileTab('config')}
+                        className={`flex-1 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 flex items-center justify-center gap-2 ${mobileTab === 'config'
+                            ? 'border-purple-500 text-purple-400 bg-purple-500/5'
+                            : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                    >
+                        <Settings2 className="size-4" />
+                        Setup
+                    </button>
+                    <button
+                        onClick={() => setMobileTab('results')}
+                        className={`flex-1 py-3.5 text-xs font-semibold uppercase tracking-wider transition-colors border-b-2 flex items-center justify-center gap-2 ${mobileTab === 'results'
+                            ? 'border-purple-500 text-purple-400 bg-purple-500/5'
+                            : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                            }`}
+                    >
+                        <Sparkles className="size-4" />
+                        Results
+                        {results.length > 0 && (
+                            <span className="bg-purple-500 text-white text-[10px] px-1.5 py-0.5 rounded-full min-w-[20px] text-center inline-flex items-center justify-center">
+                                {results.length}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
                 {/* Left Sidebar - Configuration */}
-                <div className="w-full lg:w-[450px] flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 bg-black/50 backdrop-blur-xl flex flex-col h-auto lg:h-full z-10">
-                    <div className="flex-1 lg:overflow-y-auto p-4 lg:p-6 space-y-6 lg:space-y-8 no-scrollbar">
+                <div className={`w-full lg:w-[450px] flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 bg-black/50 backdrop-blur-xl flex-col h-auto lg:h-full z-10 ${mobileTab === 'config' ? 'flex' : 'hidden lg:flex'}`}>
+                    <div className="flex-1 overflow-x-hidden lg:overflow-y-auto p-4 lg:p-6 space-y-6 lg:space-y-8 no-scrollbar">
 
                         {/* Saved Profiles */}
                         <section className="space-y-3">
@@ -399,61 +432,129 @@ export default function Dashboard() {
                                                     <GripHorizontal className="size-3" /> Reorder
                                                 </button>
                                             )}
+                                            <div className="flex border border-white/10 rounded-lg overflow-hidden ml-2 bg-white/5">
+                                                <button
+                                                    onClick={() => setProfilesViewMode('scroll')}
+                                                    className={`p-1 transition-colors ${profilesViewMode === 'scroll' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}
+                                                    title="Scroll View"
+                                                >
+                                                    <List className="size-3 lg:size-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setProfilesViewMode('grid')}
+                                                    className={`p-1 transition-colors ${profilesViewMode === 'grid' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}
+                                                    title="Grid View"
+                                                >
+                                                    <LayoutGrid className="size-3 lg:size-3.5" />
+                                                </button>
+                                            </div>
                                             <span className="text-[10px] lg:text-xs text-gray-500 border-l border-white/10 pl-2">{profiles.length} saved</span>
                                         </>
                                     )}
                                 </div>
                             </div>
                             {profiles.length > 0 ? (
-                                <ScrollableContainer className="mask-fade-right">
-                                    {profiles.map((profile: any, index: number) => (
-                                        <div
-                                            key={profile.id}
-                                            className="group relative flex-shrink-0 w-20 lg:w-24"
-                                        >
-                                            <button
-                                                onClick={() => !isReorderingProfiles && handleLoadProfile(profile)}
-                                                className={`w-full aspect-square rounded-lg border overflow-hidden transition-all relative ${isReorderingProfiles ? 'cursor-grab active:cursor-grabbing border-white/20' : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50'
-                                                    }`}
+                                profilesViewMode === 'scroll' ? (
+                                    <ScrollableContainer className="mask-fade-right">
+                                        {profiles.map((profile: any, index: number) => (
+                                            <div
+                                                key={profile.id}
+                                                className="group relative flex-shrink-0 w-20 lg:w-24"
                                             >
-                                                <img
-                                                    src={profile.image_url}
-                                                    alt={profile.name}
-                                                    className={`w-full h-full object-cover ${isReorderingProfiles ? 'opacity-70' : ''}`}
-                                                />
-                                                {isReorderingProfiles && (
-                                                    <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/40">
-                                                        <div
-                                                            onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'left') }}
-                                                            className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === 0 ? 'opacity-20 pointer-events-none' : ''}`}
-                                                        >
-                                                            <ArrowLeft className="size-3" />
-                                                        </div>
-                                                        <div
-                                                            onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'right') }}
-                                                            className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === profiles.length - 1 ? 'opacity-20 pointer-events-none' : ''}`}
-                                                        >
-                                                            <ArrowRight className="size-3" />
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </button>
-                                            {!isReorderingProfiles && (
                                                 <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        handleDeleteProfile(profile.id, profile.name)
-                                                    }}
-                                                    className="absolute -top-1 -right-1 p-1 rounded-full bg-red-500/80 hover:bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                                    title="Delete profile"
+                                                    onClick={() => !isReorderingProfiles && handleLoadProfile(profile)}
+                                                    className={`w-full aspect-square rounded-lg border overflow-hidden transition-all relative ${isReorderingProfiles ? 'cursor-grab active:cursor-grabbing border-white/20' : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50'
+                                                        }`}
                                                 >
-                                                    <X className="size-3" />
+                                                    <img
+                                                        src={profile.image_url}
+                                                        alt={profile.name}
+                                                        className={`w-full h-full object-cover ${isReorderingProfiles ? 'opacity-70' : ''}`}
+                                                    />
+                                                    {isReorderingProfiles && (
+                                                        <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/40">
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'left') }}
+                                                                className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === 0 ? 'opacity-20 pointer-events-none' : ''}`}
+                                                            >
+                                                                <ArrowLeft className="size-3" />
+                                                            </div>
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'right') }}
+                                                                className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === profiles.length - 1 ? 'opacity-20 pointer-events-none' : ''}`}
+                                                            >
+                                                                <ArrowRight className="size-3" />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </button>
-                                            )}
-                                            <p className="mt-1.5 text-[10px] lg:text-xs text-gray-400 text-center truncate">{profile.name}</p>
-                                        </div>
-                                    ))}
-                                </ScrollableContainer>
+                                                {!isReorderingProfiles && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleDeleteProfile(profile.id, profile.name)
+                                                        }}
+                                                        className="absolute -top-1 -right-1 p-1 rounded-full bg-red-500/80 hover:bg-red-500 text-white opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity z-10"
+                                                        title="Delete profile"
+                                                    >
+                                                        <X className="size-3" />
+                                                    </button>
+                                                )}
+                                                <p className="mt-1.5 text-[10px] lg:text-xs text-gray-400 text-center truncate">{profile.name}</p>
+                                            </div>
+                                        ))}
+                                    </ScrollableContainer>
+                                ) : (
+                                    <div className="grid grid-cols-4 gap-3">
+                                        {profiles.map((profile: any, index: number) => (
+                                            <div
+                                                key={profile.id}
+                                                className="group relative w-full"
+                                            >
+                                                <button
+                                                    onClick={() => !isReorderingProfiles && handleLoadProfile(profile)}
+                                                    className={`w-full aspect-square rounded-lg border overflow-hidden transition-all relative ${isReorderingProfiles ? 'cursor-grab active:cursor-grabbing border-white/20' : 'border-white/10 bg-white/5 hover:bg-white/10 hover:border-purple-500/50'
+                                                        }`}
+                                                >
+                                                    <img
+                                                        src={profile.image_url}
+                                                        alt={profile.name}
+                                                        className={`w-full h-full object-cover ${isReorderingProfiles ? 'opacity-70' : ''}`}
+                                                    />
+                                                    {isReorderingProfiles && (
+                                                        <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/40">
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'left') }}
+                                                                className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === 0 ? 'opacity-20 pointer-events-none' : ''}`}
+                                                            >
+                                                                <ArrowLeft className="size-3" />
+                                                            </div>
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); handleReorderProfile(index, 'right') }}
+                                                                className={`p-1 rounded bg-black/50 hover:bg-white/20 text-white ${index === profiles.length - 1 ? 'opacity-20 pointer-events-none' : ''}`}
+                                                            >
+                                                                <ArrowRight className="size-3" />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </button>
+                                                {!isReorderingProfiles && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleDeleteProfile(profile.id, profile.name)
+                                                        }}
+                                                        className="absolute -top-1 -right-1 p-1 rounded-full bg-red-500/80 hover:bg-red-500 text-white opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity z-10"
+                                                        title="Delete profile"
+                                                    >
+                                                        <X className="size-3" />
+                                                    </button>
+                                                )}
+                                                <p className="mt-1.5 text-[10px] lg:text-xs text-gray-400 text-center truncate">{profile.name}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
                             ) : (
                                 <div className="p-4 rounded-xl bg-white/5 border border-dashed border-white/10 text-center">
                                     <div className="text-gray-500 text-xs lg:text-sm">No saved profiles yet</div>
@@ -478,7 +579,17 @@ export default function Dashboard() {
                                     </button>
                                 )}
                             </div>
-                            <ProductUploader onUpload={handleUpload} isUploading={isUploading} />
+                            <ProductUploader
+                                onUpload={handleUpload}
+                                isUploading={isUploading}
+                                previewUrl={uploadedImage ? `data:image/jpeg;base64,${uploadedImage}` : null}
+                                onClear={() => {
+                                    setUploadedImage(null)
+                                    setAnalysis(null)
+                                    setResults([])
+                                    setCurrentProductId(null)
+                                }}
+                            />
                         </section>
 
                         {/* Analysis Result */}
@@ -572,7 +683,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* Right Area - Canvas/Results */}
-                <div className="flex-1 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-black to-black relative overflow-hidden flex flex-col min-h-[500px] lg:min-h-0 lg:h-full border-t lg:border-t-0 lg:border-l border-white/10">
+                <div className={`flex-1 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-900 via-black to-black relative overflow-hidden flex-col md:min-h-[500px] lg:min-h-0 lg:h-full border-t lg:border-t-0 lg:border-l border-white/10 ${mobileTab === 'results' ? 'flex min-h-[calc(100vh-8rem)]' : 'hidden lg:flex'}`}>
                     {isGenerating ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                             <div className="relative size-32 mb-6">

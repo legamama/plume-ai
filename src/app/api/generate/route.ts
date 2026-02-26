@@ -104,7 +104,8 @@ export async function POST(req: Request) {
             settings.model,
             settings.aspectRatio,
             apiKey,
-            referenceImageBase64
+            referenceImageBase64,
+            settings.imageSize
         );
 
         console.log('Generate API: Image generated successfully');

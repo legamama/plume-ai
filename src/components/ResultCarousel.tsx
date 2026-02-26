@@ -49,9 +49,29 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
     const handleDownload = async () => {
         try {
             // Create filename with preset prefix
+            // Determine extension
+            let ext = 'png'
+            if (currentImage.url.startsWith('data:')) {
+                const mimeTypeMatch = currentImage.url.match(/^data:([^;]+);/);
+                if (mimeTypeMatch && mimeTypeMatch[1]) {
+                    ext = mimeTypeMatch[1].split('/')[1] || 'png';
+                }
+            } else {
+                try {
+                    const urlObj = new URL(currentImage.url);
+                    const pathExt = urlObj.pathname.split('.').pop()?.toLowerCase();
+                    if (pathExt && ['jpg', 'jpeg', 'png', 'webp', 'heic'].includes(pathExt)) {
+                        ext = pathExt;
+                    }
+                } catch (e) {
+                    // Ignore URL parsing errors
+                }
+            }
+            if (ext === 'jpeg') ext = 'jpg';
+
             const preset = currentImage.settings?.preset || 'default'
             const timestamp = new Date().getTime()
-            const filename = `plume-studio-${preset}-${timestamp}.png`
+            const filename = `plume-studio-${preset}-${timestamp}.${ext}`
 
             let blob: Blob
 
@@ -132,13 +152,13 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
                         <>
                             <button
                                 onClick={prevSlide}
-                                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/80 hover:scale-110 backdrop-blur-md border border-white/10"
+                                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all hover:bg-black/80 hover:scale-110 backdrop-blur-md border border-white/10"
                             >
                                 <ChevronLeft className="size-6" />
                             </button>
                             <button
                                 onClick={nextSlide}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/80 hover:scale-110 backdrop-blur-md border border-white/10"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-black/50 text-white opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all hover:bg-black/80 hover:scale-110 backdrop-blur-md border border-white/10"
                             >
                                 <ChevronRight className="size-6" />
                             </button>
@@ -146,7 +166,7 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
                     )}
 
                     {/* Action Bar */}
-                    <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                    <div className="absolute top-6 right-6 flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all lg:translate-y-2 lg:group-hover:translate-y-0">
                         <button
                             onClick={() => setShowPromptDetails(!showPromptDetails)}
                             className="p-2.5 rounded-xl bg-black/50 text-white hover:bg-black/80 backdrop-blur-md border border-white/10 hover:border-white/20 transition-all"

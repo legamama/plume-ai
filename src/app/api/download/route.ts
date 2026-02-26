@@ -5,7 +5,7 @@ export async function GET(req: NextRequest) {
     try {
         const searchParams = req.nextUrl.searchParams;
         const url = searchParams.get('url');
-        const filename = searchParams.get('filename') || 'plume-studio-image.png';
+        let filename = searchParams.get('filename');
 
         if (!url) {
             return NextResponse.json(
@@ -25,10 +25,17 @@ export async function GET(req: NextRequest) {
         const arrayBuffer = await blob.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
+        const contentType = response.headers.get('content-type') || blob.type || 'image/jpeg';
+
+        if (!filename) {
+            const ext = contentType.split('/')[1] === 'jpeg' ? 'jpg' : contentType.split('/')[1] || 'jpg';
+            filename = `plume-studio-image.${ext}`;
+        }
+
         // Return the image with proper download headers
         return new NextResponse(buffer, {
             headers: {
-                'Content-Type': 'image/png',
+                'Content-Type': contentType,
                 'Content-Disposition': `attachment; filename="${filename}"`,
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',

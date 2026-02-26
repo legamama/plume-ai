@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X, User } from 'lucide-react'
+import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, ChevronUp, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X, User } from 'lucide-react'
 import ModelPlacement from './ModelPlacement'
 
 interface SceneBuilderProps {
@@ -22,6 +22,7 @@ export interface GenerationSettings {
     customPrompt: string
     aspectRatio: string
     model: string
+    imageSize?: string
     textOverlay?: {
         enabled: boolean
         text: string
@@ -69,6 +70,12 @@ const ASPECT_RATIOS = [
     { id: '4:5', name: '4:5', label: 'Post', ratio: 'aspect-[4/5]' },
 ]
 
+const IMAGE_SIZES = [
+    { id: '1K', name: '1K (Standard)', description: 'Fast (~1024px)' },
+    { id: '2K', name: '2K (High)', description: 'Detailed (~2048px)' },
+    { id: '4K', name: '4K (Ultra)', description: 'Maximum (~4096px)' },
+]
+
 const MODELS = [
     {
         id: 'gemini-3-pro-image-preview',
@@ -109,7 +116,7 @@ function TemplateItem({ template, applyTemplate, onDelete, onMove, folders, movi
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                 {/* Move Dropdown */}
                 <div className="relative">
                     <button
@@ -176,6 +183,7 @@ export default function SceneBuilder({
         customPrompt: '',
         aspectRatio: '1:1',
         model: 'gemini-3-pro-image-preview',
+        imageSize: '1K',
         textOverlay: {
             enabled: false,
             text: '',
@@ -206,6 +214,8 @@ export default function SceneBuilder({
     const [newFolderName, setNewFolderName] = useState('')
     const [isReordering, setIsReordering] = useState(false)
     const [movingTemplateId, setMovingTemplateId] = useState<string | null>(null)
+    const [templatesExpanded, setTemplatesExpanded] = useState(false)
+    const [presetsExpanded, setPresetsExpanded] = useState(false)
 
     const toggleFolder = (folderId: string) => {
         setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }))
@@ -305,8 +315,12 @@ export default function SceneBuilder({
             {(templates.length > 0 || folders.length > 0) && (
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <label
+                            className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 cursor-pointer hover:text-white transition-colors"
+                            onClick={() => setTemplatesExpanded(!templatesExpanded)}
+                        >
                             <Bookmark className="size-3" /> Saved Templates
+                            {templatesExpanded ? <ChevronUp className="size-3 ml-1" /> : <ChevronDown className="size-3 ml-1" />}
                         </label>
                         <div className="flex items-center gap-2">
                             <button
@@ -319,112 +333,122 @@ export default function SceneBuilder({
                         </div>
                     </div>
 
-                    {isCreatingFolder && (
-                        <div className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 animate-in fade-in slide-in-from-top-1">
-                            <Folder className="size-4 text-purple-400" />
-                            <input
-                                type="text"
-                                value={newFolderName}
-                                onChange={(e) => setNewFolderName(e.target.value)}
-                                placeholder="Folder Name"
-                                className="bg-transparent border-none text-sm text-white focus:outline-none flex-1 min-w-0"
-                                autoFocus
-                                onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-                            />
-                            <button onClick={handleCreateFolder} className="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded hover:bg-purple-500/30">Add</button>
-                            <button onClick={() => setIsCreatingFolder(false)} className="text-gray-500 hover:text-white"><X className="size-3.5" /></button>
-                        </div>
-                    )}
+                    {templatesExpanded && (
+                        <>
+                            {isCreatingFolder && (
+                                <div className="flex items-center gap-2 p-2 bg-white/5 rounded-lg border border-white/10 animate-in fade-in slide-in-from-top-1">
+                                    <Folder className="size-4 text-purple-400" />
+                                    <input
+                                        type="text"
+                                        value={newFolderName}
+                                        onChange={(e) => setNewFolderName(e.target.value)}
+                                        placeholder="Folder Name"
+                                        className="bg-transparent border-none text-sm text-white focus:outline-none flex-1 min-w-0"
+                                        autoFocus
+                                        onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                                    />
+                                    <button onClick={handleCreateFolder} className="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded hover:bg-purple-500/30">Add</button>
+                                    <button onClick={() => setIsCreatingFolder(false)} className="text-gray-500 hover:text-white"><X className="size-3.5" /></button>
+                                </div>
+                            )}
 
-                    <div className="space-y-2">
-                        {/* Folders */}
-                        {folders.map(folder => {
-                            const folderTemplates = templates.filter(t => t.folder_id === folder.id)
-                            const isExpanded = expandedFolders[folder.id]
+                            <div className="space-y-2">
+                                {/* Folders */}
+                                {folders.map(folder => {
+                                    const folderTemplates = templates.filter(t => t.folder_id === folder.id)
+                                    const isExpanded = expandedFolders[folder.id]
 
-                            return (
-                                <div key={folder.id} className="space-y-1">
-                                    <div
-                                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 cursor-pointer group"
-                                        onClick={() => toggleFolder(folder.id)}
-                                    >
-                                        {isExpanded ? <ChevronDown className="size-3 text-gray-500" /> : <ChevronRight className="size-3 text-gray-500" />}
-                                        <Folder className={`size-4 ${isExpanded ? 'text-purple-400' : 'text-gray-500'}`} />
-                                        <span className="text-sm text-gray-300 flex-1">{folder.name}</span>
-                                        <span className="text-[10px] text-gray-600">{folderTemplates.length}</span>
-                                    </div>
+                                    return (
+                                        <div key={folder.id} className="space-y-1">
+                                            <div
+                                                className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/5 cursor-pointer group"
+                                                onClick={() => toggleFolder(folder.id)}
+                                            >
+                                                {isExpanded ? <ChevronDown className="size-3 text-gray-500" /> : <ChevronRight className="size-3 text-gray-500" />}
+                                                <Folder className={`size-4 ${isExpanded ? 'text-purple-400' : 'text-gray-500'}`} />
+                                                <span className="text-sm text-gray-300 flex-1">{folder.name}</span>
+                                                <span className="text-[10px] text-gray-600">{folderTemplates.length}</span>
+                                            </div>
 
-                                    {isExpanded && (
-                                        <div className="pl-4 space-y-1 border-l border-white/5 ml-2.5">
-                                            {folderTemplates.map(template => (
-                                                <TemplateItem
-                                                    key={template.id}
-                                                    template={template}
-                                                    applyTemplate={applyTemplate}
-                                                    onDelete={onDeleteTemplate}
-                                                    onMove={handleMoveTemplate}
-                                                    folders={folders}
-                                                    movingId={movingTemplateId}
-                                                    setMovingId={setMovingTemplateId}
-                                                />
-                                            ))}
-                                            {folderTemplates.length === 0 && (
-                                                <div className="text-[10px] text-gray-600 p-2 italic">Empty folder</div>
+                                            {isExpanded && (
+                                                <div className="pl-4 space-y-1 border-l border-white/5 ml-2.5">
+                                                    {folderTemplates.map(template => (
+                                                        <TemplateItem
+                                                            key={template.id}
+                                                            template={template}
+                                                            applyTemplate={applyTemplate}
+                                                            onDelete={onDeleteTemplate}
+                                                            onMove={handleMoveTemplate}
+                                                            folders={folders}
+                                                            movingId={movingTemplateId}
+                                                            setMovingId={setMovingTemplateId}
+                                                        />
+                                                    ))}
+                                                    {folderTemplates.length === 0 && (
+                                                        <div className="text-[10px] text-gray-600 p-2 italic">Empty folder</div>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
-                                    )}
-                                </div>
-                            )
-                        })}
+                                    )
+                                })}
 
-                        {/* Uncategorized Templates */}
-                        {templates.filter(t => !t.folder_id).map(template => (
-                            <TemplateItem
-                                key={template.id}
-                                template={template}
-                                applyTemplate={applyTemplate}
-                                onDelete={onDeleteTemplate}
-                                onMove={handleMoveTemplate}
-                                folders={folders}
-                                movingId={movingTemplateId}
-                                setMovingId={setMovingTemplateId}
-                            />
-                        ))}
-                    </div>
+                                {/* Uncategorized Templates */}
+                                {templates.filter(t => !t.folder_id).map(template => (
+                                    <TemplateItem
+                                        key={template.id}
+                                        template={template}
+                                        applyTemplate={applyTemplate}
+                                        onDelete={onDeleteTemplate}
+                                        onMove={handleMoveTemplate}
+                                        folders={folders}
+                                        movingId={movingTemplateId}
+                                        setMovingId={setMovingTemplateId}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
             {/* Presets Grid */}
             <div className="space-y-3">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <label
+                    className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 cursor-pointer hover:text-white transition-colors"
+                    onClick={() => setPresetsExpanded(!presetsExpanded)}
+                >
                     <LayoutTemplate className="size-3" /> Style Preset
+                    {presetsExpanded ? <ChevronUp className="size-3 ml-1" /> : <ChevronDown className="size-3 ml-1" />}
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                    {PRESETS.map((preset) => {
-                        const Icon = preset.icon
-                        const isSelected = settings.preset === preset.id
-                        return (
-                            <button
-                                key={preset.id}
-                                onClick={() => setSettings({ ...settings, preset: preset.id })}
-                                className={`relative p-3 rounded-xl border text-left transition-all duration-300 group overflow-hidden ${isSelected
-                                    ? `bg-white/10 border-white/20 shadow-lg`
-                                    : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
-                                    }`}
-                            >
-                                {isSelected && <div className={`absolute inset-0 opacity-20 ${preset.bg}`} />}
-                                <div className={`relative z-10 flex items-center gap-2`}>
-                                    <div className={`size-7 rounded-lg flex items-center justify-center ${preset.bg} ${preset.color} flex-shrink-0`}>
-                                        <Icon className="size-3.5" />
+                {presetsExpanded && (
+                    <div className="grid grid-cols-2 gap-2">
+                        {PRESETS.map((preset) => {
+                            const Icon = preset.icon
+                            const isSelected = settings.preset === preset.id
+                            return (
+                                <button
+                                    key={preset.id}
+                                    onClick={() => setSettings({ ...settings, preset: preset.id })}
+                                    className={`relative p-3 rounded-xl border text-left transition-all duration-300 group overflow-hidden ${isSelected
+                                        ? `bg-white/10 border-white/20 shadow-lg`
+                                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                                        }`}
+                                >
+                                    {isSelected && <div className={`absolute inset-0 opacity-20 ${preset.bg}`} />}
+                                    <div className={`relative z-10 flex items-center gap-2`}>
+                                        <div className={`size-7 rounded-lg flex items-center justify-center ${preset.bg} ${preset.color} flex-shrink-0`}>
+                                            <Icon className="size-3.5" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className={`font-medium text-xs ${isSelected ? 'text-white' : 'text-gray-300'} truncate`}>{preset.name}</div>
+                                            <div className="text-[9px] text-gray-500 leading-tight mt-0.5 truncate">{preset.description}</div>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className={`font-medium text-xs ${isSelected ? 'text-white' : 'text-gray-300'} truncate`}>{preset.name}</div>
-                                        <div className="text-[9px] text-gray-500 leading-tight mt-0.5 truncate">{preset.description}</div>
-                                    </div>
-                                </div>
-                            </button>
-                        )
-                    })}
-                </div>
+                                </button>
+                            )
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Custom Prompt */}
@@ -551,7 +575,7 @@ export default function SceneBuilder({
             </div>
 
             {/* Model */}
-            <div className="space-y-3 pb-24">
+            <div className="space-y-3">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
                     <Wand2 className="size-3" /> Model
                 </label>
@@ -574,6 +598,28 @@ export default function SceneBuilder({
                                 </div>
                             </div>
                             <p className="text-[10px] text-gray-500 leading-tight">{model.description}</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Quality/Size */}
+            <div className="space-y-3 pb-24">
+                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                    <Wand2 className="size-3" /> Resolution Quality
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                    {IMAGE_SIZES.map((size) => (
+                        <button
+                            key={size.id}
+                            onClick={() => setSettings({ ...settings, imageSize: size.id })}
+                            className={`p-2 rounded-lg border text-center transition-all ${(settings.imageSize || '1K') === size.id
+                                ? 'bg-purple-500/20 border-purple-500/50 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                                : 'bg-white/5 border-white/5 text-gray-400 hover:bg-white/10 hover:border-white/10'
+                                }`}
+                        >
+                            <div className="font-medium text-xs">{size.name}</div>
+                            <div className="text-[9px] opacity-70 mt-0.5">{size.description}</div>
                         </button>
                     ))}
                 </div>

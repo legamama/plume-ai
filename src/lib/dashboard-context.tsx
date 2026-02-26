@@ -29,6 +29,7 @@ const DEFAULT_SETTINGS: GenerationSettings = {
     customPrompt: '',
     aspectRatio: '1:1',
     model: 'gemini-3-pro-image-preview',
+    imageSize: '1K',
     textOverlay: {
         enabled: false,
         text: '',

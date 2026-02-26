@@ -95,62 +95,73 @@ export const generateProductScene = async (
     model: string,
     aspectRatio: string,
     apiKey?: string,
-    referenceImageBase64?: string | null
+    referenceImageBase64?: string | null,
+    imageSize?: string
 ): Promise<{ imageUrl: string, fullPrompt: string }> => {
     return withRetry(async () => {
         try {
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(originalImageBase64);
 
+            // Make sure aspect ratio is supported by Imagen 3
+            let finalAspectRatio = aspectRatio;
+            if (aspectRatio === "4:5") finalAspectRatio = "3:4";
+            if (aspectRatio === "5:4") finalAspectRatio = "4:3";
+
             // FIX: Correctly set imageConfig for both supported image generation models.
             // `aspectRatio` is supported by both, while `imageSize` is only for `gemini-3-pro-image-preview`.
             const imageConfig: any = {
-                aspectRatio: aspectRatio,
+                aspectRatio: finalAspectRatio,
             };
             if (model === 'gemini-3-pro-image-preview') {
-                imageConfig.imageSize = "1K";
+                imageConfig.imageSize = imageSize || "1K";
             }
             const config = { imageConfig };
+
+            const parts: any[] = [];
+
+            // Image 1: Product Image
+            parts.push({
+                inlineData: {
+                    mimeType,
+                    data,
+                }
+            });
+
+            // Image 2: Scene/Model Reference Image (if applicable)
+            if (referenceImageBase64) {
+                const ref = extractBase64Data(referenceImageBase64);
+                parts.push({
+                    inlineData: {
+                        mimeType: ref.mimeType,
+                        data: ref.data,
+                    }
+                });
+            }
 
             const fullTextPrompt = `Create a professional product photoshoot image.
             
 VISUAL PRIORITY:
-1. The PRIMARY source of truth for the product's appearance is the attached REFERENCE IMAGE (the first image provided).
-2. The text description below is SECONDARY, provided only to help understand the product's features.
+1. The PRIMARY source of truth for the product's appearance is the PRODUCT IMAGE (the FIRST image provided).
+${referenceImageBase64 ? '2. The SECOND source of truth for the scene and pose is the SCENE REFERENCE IMAGE (the SECOND image provided).' : ''}
+3. The text description below is SECONDARY, provided only to help understand the product's features.
 
 PRODUCT DESCRIPTION (Secondary):
 ${productDescription}
 
 CRITICAL INSTRUCTIONS:
-1. You must reproduce the product from the reference image EXACTLY. Do not redesign it.
-2. Do NOT change the product's shape, text, logos, fonts, or colors. The product branding must remain sharp, legible, and identical to the reference.
-3. If the text description conflicts with the visual reference, IGNORE the text and follow the image.
+1. You must reproduce the product from the FIRST image EXACTLY as the main subject. Do not redesign it.
+2. Do NOT change the product's shape, text, logos, fonts, or colors. The product branding must remain sharp, legible, and identical to the product image.
+3. If the text description conflicts with the visual reference, IGNORE the text and follow the FIRST image for the product design.
 4. Place this exact product into the following scene: "${scenePrompt}".
-5. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
-6. The result should look like a high-end commercial photograph.`;
+${referenceImageBase64 ? '5. You must use the SECOND image as a strict reference for the pose, lighting, and environment as dictated by the scene prompt.' : ''}
+6. IMPORTANT FRAME CAUTION: Regardless of the generated image's aspect ratio (e.g. wide, vertical, or square), you MUST ensure the ENTIRE product from the FIRST image is fully visible, proportioned correctly, and appropriately centered/placed. Do NOT crop, stretch, or squash the product to fit the frame.
+7. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
+8. The result should look like a high-end commercial photograph.`;
 
-            const parts: any[] = [
-                {
-                    inlineData: {
-                        mimeType,
-                        data,
-                    },
-                },
-                {
-                    text: fullTextPrompt,
-                },
-            ];
-
-            // Add reference model image if provided
-            if (referenceImageBase64) {
-                const ref = extractBase64Data(referenceImageBase64);
-                parts.unshift({
-                    inlineData: {
-                        mimeType: ref.mimeType,
-                        data: ref.data,
-                    },
-                });
-            }
+            parts.push({
+                text: fullTextPrompt,
+            });
 
             const response = await ai.models.generateContent({
                 model: model,
@@ -164,8 +175,9 @@ CRITICAL INSTRUCTIONS:
 
             for (const part of response.candidates?.[0]?.content?.parts || []) {
                 if (part.inlineData) {
+                    const mimeType = part.inlineData.mimeType || 'image/jpeg';
                     return {
-                        imageUrl: `data:image/png;base64,${part.inlineData.data}`,
+                        imageUrl: `data:${mimeType};base64,${part.inlineData.data}`,
                         fullPrompt: fullTextPrompt
                     };
                 }
