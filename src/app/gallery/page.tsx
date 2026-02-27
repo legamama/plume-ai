@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { getGenerations, deleteGeneration } from '@/lib/supabase-utils'
 import Image from 'next/image'
-import { Download, Trash2, Clock, Package, ChevronDown, ChevronUp, Sparkles, X, ChevronLeft, ChevronRight, Share2, Info } from 'lucide-react'
+import { Download, Trash2, Clock, Package, ChevronDown, ChevronUp, Sparkles, X, ChevronLeft, ChevronRight, Share2, Info, CheckSquare, Check } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 interface Generation {
@@ -25,6 +25,8 @@ function GalleryContent() {
     const [selectedImage, setSelectedImage] = useState<Generation | null>(null)
     const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
     const [fullscreenDetailsExpanded, setFullscreenDetailsExpanded] = useState(false)
+    const [isSelectMode, setIsSelectMode] = useState(false)
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
     useEffect(() => {
         loadGenerations()
@@ -78,13 +80,17 @@ function GalleryContent() {
         }
     }
 
-    const getDaysRemaining = (expiresAt: string) => {
-        const now = new Date()
-        const expiry = new Date(expiresAt)
-        const diff = expiry.getTime() - now.getTime()
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
-        return days
-    }
+    const processedGenerations = useMemo(() => {
+        const nowMs = Date.now()
+        return generations.map(gen => {
+            const diff = new Date(gen.expires_at).getTime() - nowMs
+            const daysRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+            return {
+                ...gen,
+                daysRemaining
+            }
+        })
+    }, [generations])
 
     const toggleExpanded = (id: string, e: React.MouseEvent) => {
         e.stopPropagation()
@@ -110,6 +116,39 @@ function GalleryContent() {
         }
     }
 
+    const toggleSelection = (id: string, e?: React.MouseEvent) => {
+        e?.stopPropagation()
+        setSelectedIds(prev => {
+            const newSet = new Set(prev)
+            if (newSet.has(id)) newSet.delete(id)
+            else newSet.add(id)
+            return newSet
+        })
+    }
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.size === 0) return
+        if (!confirm(`Are you sure you want to delete ${selectedIds.size} item(s)?`)) return
+
+        setLoading(true)
+        for (const id of Array.from(selectedIds)) {
+            await deleteGeneration(id)
+        }
+
+        setGenerations(prev => prev.filter(g => !selectedIds.has(g.id)))
+        setSelectedIds(new Set())
+        setIsSelectMode(false)
+        setLoading(false)
+    }
+
+    const handleCardClick = (gen: Generation) => {
+        if (isSelectMode) {
+            toggleSelection(gen.id)
+        } else {
+            setSelectedImage(gen)
+        }
+    }
+
     return (
         <div className="min-h-screen bg-[#050505] text-white selection:bg-purple-500/30">
             {/* Background Effects */}
@@ -131,6 +170,40 @@ function GalleryContent() {
                             A showcase of your AI generated product photography. Assets automatically expire after 30 days to free up space.
                         </p>
                     </div>
+                    {generations.length > 0 && (
+                        <div className="flex items-center gap-3">
+                            {isSelectMode ? (
+                                <>
+                                    <button
+                                        onClick={() => {
+                                            setIsSelectMode(false);
+                                            setSelectedIds(new Set());
+                                        }}
+                                        className="px-4 py-2 rounded-full border border-white/10 text-sm font-medium hover:bg-white/10 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    {selectedIds.size > 0 && (
+                                        <button
+                                            onClick={handleBulkDelete}
+                                            className="px-4 py-2 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 text-sm font-medium hover:bg-red-500/40 transition-colors flex items-center gap-2"
+                                        >
+                                            <Trash2 className="size-4" />
+                                            Delete ({selectedIds.size})
+                                        </button>
+                                    )}
+                                </>
+                            ) : (
+                                <button
+                                    onClick={() => setIsSelectMode(true)}
+                                    className="px-4 py-2 rounded-full border border-white/10 text-sm font-medium hover:bg-white/10 transition-colors flex items-center gap-2"
+                                >
+                                    <CheckSquare className="size-4" />
+                                    Select
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Content */}
@@ -153,24 +226,30 @@ function GalleryContent() {
                         </p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-                        {generations.map((gen) => {
-                            const daysRemaining = getDaysRemaining(gen.expires_at)
+                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-8">
+                        {processedGenerations.map((gen) => {
+                            const daysRemaining = gen.daysRemaining
                             const isExpanded = expandedCards.has(gen.id)
+                            const isSelected = selectedIds.has(gen.id)
 
                             return (
                                 <div
                                     key={gen.id}
-                                    className="group flex flex-col relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10 hover:bg-white/[0.05] hover:border-purple-500/40 transition-all duration-500 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] focus-within:ring-2 focus-within:ring-purple-500/50"
+                                    className={`group flex flex-col relative rounded-2xl overflow-hidden bg-white/[0.03] border transition-all duration-500 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] focus-within:ring-2 focus-within:ring-purple-500/50 ${isSelected ? 'border-purple-500 ring-1 ring-purple-500' : 'border-white/10 hover:bg-white/[0.05] hover:border-purple-500/40'}`}
                                 >
                                     {/* Image Container */}
                                     <div
-                                        className="aspect-[4/5] sm:aspect-square relative cursor-pointer overflow-hidden bg-black/40"
-                                        onClick={() => setSelectedImage(gen)}
+                                        className={`aspect-[4/5] sm:aspect-square relative cursor-pointer overflow-hidden bg-black/40 ${isSelectMode && isSelected ? 'opacity-80' : ''}`}
+                                        onClick={() => handleCardClick(gen)}
                                         role="button"
                                         tabIndex={0}
-                                        aria-label="View fullscreen image"
+                                        aria-label={isSelectMode ? "Select image" : "View fullscreen image"}
                                     >
+                                        <div className={`absolute top-2 left-2 sm:top-3 sm:left-3 z-20 transition-opacity duration-200 ${isSelectMode ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                                            <div className={`size-6 rounded-full border flex items-center justify-center transition-colors duration-200 ${isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'bg-black/50 border-white/50 backdrop-blur-md'}`}>
+                                                <Check className={`size-3 lg:size-4 transition-transform duration-200 ${isSelected ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`} />
+                                            </div>
+                                        </div>
                                         <Image
                                             src={gen.image_url}
                                             alt={gen.prompt || "Generated image"}
@@ -212,8 +291,8 @@ function GalleryContent() {
                                         </div>
 
                                         {/* Mobile Always-on badges */}
-                                        <div className="absolute top-3 left-3 sm:hidden">
-                                            <div className="bg-black/60 shadow-lg backdrop-blur-md px-2 py-1 rounded-md border border-white/10 flex items-center gap-1 text-[10px] font-medium text-purple-200">
+                                        <div className="absolute top-2 right-2 sm:hidden pointer-events-none">
+                                            <div className="bg-black/60 shadow-lg backdrop-blur-md px-2 py-1 rounded-md border border-white/10 flex items-center gap-1 text-[10px] sm:text-xs font-medium text-purple-200">
                                                 <Clock className="size-3" />
                                                 {daysRemaining}d
                                             </div>

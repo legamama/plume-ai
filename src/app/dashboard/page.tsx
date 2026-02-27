@@ -437,6 +437,7 @@ export default function Dashboard() {
                                                     onClick={() => setProfilesViewMode('scroll')}
                                                     className={`p-1 transition-colors ${profilesViewMode === 'scroll' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}
                                                     title="Scroll View"
+                                                    aria-label="Toggle scroll view for profiles"
                                                 >
                                                     <List className="size-3 lg:size-3.5" />
                                                 </button>
@@ -444,6 +445,7 @@ export default function Dashboard() {
                                                     onClick={() => setProfilesViewMode('grid')}
                                                     className={`p-1 transition-colors ${profilesViewMode === 'grid' ? 'bg-purple-500/20 text-purple-400' : 'text-gray-500 hover:text-gray-300'}`}
                                                     title="Grid View"
+                                                    aria-label="Toggle grid view for profiles"
                                                 >
                                                     <LayoutGrid className="size-3 lg:size-3.5" />
                                                 </button>
@@ -709,17 +711,29 @@ export default function Dashboard() {
                             onTemplateSaved={loadTemplates}
                         />
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                            <div className="relative size-24 lg:size-32 mb-6 group">
-                                <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-2xl group-hover:bg-purple-500/30 transition-all duration-500" />
-                                <div className="relative size-24 lg:size-32 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 flex items-center justify-center backdrop-blur-sm shadow-2xl group-hover:scale-105 transition-transform duration-500">
-                                    <Sparkles className="size-10 lg:size-12 text-gray-500 group-hover:text-purple-400 transition-colors duration-500" />
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-8 relative">
+                            {/* Ambient magical background for empty state */}
+                            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+                                <div className="absolute top-[20%] left-[30%] w-[40%] h-[40%] bg-purple-600/10 blur-[100px] rounded-full mix-blend-screen animate-pulse" style={{ animationDuration: '6s' }}></div>
+                                <div className="absolute top-[40%] right-[30%] w-[30%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }}></div>
+                            </div>
+
+                            <div className="relative size-32 lg:size-40 mb-8 group z-10">
+                                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/20 to-blue-500/20 rounded-[2.5rem] blur-xl group-hover:blur-2xl transition-all duration-700 opacity-50 group-hover:opacity-100" />
+                                <div className="relative w-full h-full rounded-[2.5rem] bg-black/40 border border-white/10 flex items-center justify-center backdrop-blur-xl shadow-2xl group-hover:-translate-y-2 transition-transform duration-500 overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                    <Sparkles className="size-12 lg:size-16 text-gray-400 group-hover:text-purple-400 transition-colors duration-500 relative z-10" />
                                 </div>
                             </div>
-                            <h3 className="text-xl lg:text-2xl font-semibold text-white mb-3 tracking-tight">Ready to Create Magic</h3>
-                            <p className="text-gray-500 max-w-md mx-auto text-sm lg:text-lg leading-relaxed">
-                                Upload your product image to start generating professional photography with AI.
+                            <h3 className="text-3xl lg:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400 mb-4 tracking-tight z-10">
+                                Ready to Create Magic
+                            </h3>
+                            <p className="text-gray-400 max-w-md mx-auto text-base lg:text-lg leading-relaxed z-10 font-medium">
+                                Upload a product on the left to start generating infinite variations of professional photography.
                             </p>
+
+                            {/* Decorative line */}
+                            <div className="mt-12 w-24 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-full z-10"></div>
                         </div>
                     )}
                 </div>
