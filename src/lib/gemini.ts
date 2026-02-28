@@ -206,17 +206,22 @@ export const generateProductScene = async (
             
 You are a master product photographer, 3D render artist, and digital composite expert. Your task is to generate a hyper-realistic photoshoot scene and seamlessly integrate the provided product into it.
 
+PRODUCT CONSISTENCY INSTRUCTIONS (CRITICAL & NON-NEGOTIABLE):
+- The PRODUCT IMAGE (the ${productInstructionIndex} image) is the absolute definitive source of truth for the product's design, shape, labels, texts, and colors.
+- ZERO HALLUCINATION POLICY: You MUST NOT invent, alter, or hallucinate any details on the product itself. This includes text, logos, branding, structural shape, or colors.
+- The product must remain 100% identical to the reference image and look like a high-end physical object.
+- The product is independent of the scene. Do not let the scene details or environment styling bleed into or alter the physical design of the product.
+
+PRODUCT DETAILS FOR STRICT ADHERENCE:
+${productDescription}
+
 ${referenceImageBase64 ? `SCENE REFERENCE INSTRUCTIONS:
 - You must use the SCENE REFERENCE IMAGE (the ${sceneInstructionIndex} image) as your absolute guide for environment, composition, and lighting.
 - Match the exact light source direction, color temperature (Kelvin), and intensity of the reference.
 - Match the camera's focal length, depth of field (bokeh), and perspective.
-- Seamlessly replace the subject in the scene with the user's product, ensuring it occupies the same physical space and scale.` : `SCENE INSTRUCTIONS:
-- Generate the following environment: "${scenePrompt}"`}
-
-PRODUCT CONSISTENCY INSTRUCTIONS (CRITICAL):
-- The PRODUCT IMAGE (the ${productInstructionIndex} image) is your absolute source of truth for the product's design.
-- ZERO HALLUCINATION POLICY: Correctly preserve all branding, typography, logos, and structural details.
-- The product must remain 100% legible and look like a high-end physical object.
+- Seamlessly replace the subject in the scene with the user's product, ensuring it occupies the same physical space and scale.` : `ENVIRONMENT & BACKGROUND INSTRUCTIONS:
+- Generate the following environment for the product to be placed in: "${scenePrompt}"
+- Ensure the environment complements the product but DOES NOT alter the product's original details.`}
 
 REALISTIC INTEGRATION & LIGHTING (PRIME DIRECTIVE):
 - GLOBAL ILLUMINATION: The product must be illuminated by the scene's light sources. If there's a sunset, the product should have warm, directional highlights. If it's a studio setup, use consistent key, fill, and rim lighting.
@@ -225,12 +230,9 @@ REALISTIC INTEGRATION & LIGHTING (PRIME DIRECTIVE):
 - REFLECTIONS & CAUSTICS: If the product is on a reflective surface (like marble or glass), it must cast a realistic reflection. If the product is glass/liquid, it should refract light and cast caustics on its base.
 
 ${creativeMode
-                    ? "- CREATIVE FREEDOM: You may choose dynamic camera angles (low-angle, macro, wide-shot) to maximize the cinematic appeal, provided the product remains undistorted."
-                    : "- STRICT PLACEMENT: Place the product as the hero center-piece, ensuring it is fully visible and authentically structured."
-                }
-
-PRODUCT DETAILS FOR CONTEXT:
-${productDescription}`;
+                    ? "- CREATIVE FREEDOM: You may choose dynamic camera angles (low-angle, macro, wide-shot) to maximize the cinematic appeal, provided the absolute integrity of the product is maintained."
+                    : "- STRICT PLACEMENT: Place the product as the hero center-piece, ensuring it is fully visible, upright, and authentically structured."
+                }`;
 
             parts.push({
                 text: fullTextPrompt,
