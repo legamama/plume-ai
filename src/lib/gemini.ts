@@ -63,13 +63,14 @@ export const analyzeProductImage = async (imageBase64: string, apiKey?: string):
                             },
                         },
                         {
-                            text: `Analyze this product image in high detail for a professional photographer. 
+                            text: `Analyze this product image in meticulous detail for a professional commercial photoshoot. 
             Describe the physical characteristics of the product, including:
-            1. Exact text, brand names, and logos visible (quote them).
-            2. Colors, materials (e.g., matte plastic, brushed metal, glass), and textures.
-            3. Shape and form.
+            1. Exact text, brand names, slogans, and logos visible (quote them accurately).
+            2. Precise colors, materials (e.g., matte plastic, brushed metal, glass), and surface textures.
+            3. Exact geometrical shape, form, and proportions.
+            4. Details of packaging, caps, lids, labels, and how they relate geometrically.
             
-            This description will be used to instruct an image generator to PRESERVE these details perfectly in a new setting.`,
+            This description will be used as a strict specification for an image generator. The generator MUST PRESERVE these details perfectly without altering existing text, colors, shapes, or logos when placing it in a new setting. Ensure your description emphasizes the absolute necessity of maintaining the product's 1:1 original appearance.`,
                         },
                     ],
                 },
@@ -88,12 +89,66 @@ export const analyzeProductImage = async (imageBase64: string, apiKey?: string):
     });
 };
 
+export const expandPromptText = async (prompt: string, apiKey?: string): Promise<string[]> => {
+    return withRetry(async () => {
+        try {
+            const ai = getClient(apiKey);
+
+            const fullTextPrompt = `You are a professional product photographer and creative director. 
+            The user wants to generate a product image with the following base idea: "${prompt}".
+            
+            Your task is to write 3 distinct, highly detailed cinematic prompts based on this idea, suitable for a text-to-image AI.
+            EACH prompt must include lighting style, background environment, camera details (e.g. 8k, 35mm lens, macro), and mood.
+            
+            Respond ONLY with a valid JSON array of strings containing the 3 prompts. Do not include markdown formatting like \`\`\`json.
+            Example format: ["Prompt 1...", "Prompt 2...", "Prompt 3..."]`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.0-flash',
+                contents: fullTextPrompt,
+            });
+
+            if (!response || !response.text) {
+                return [prompt, prompt, prompt];
+            }
+
+            // Attempt to parse JSON
+            let text = response.text.trim();
+            // Remove markdown format if it slipped in
+            if (text.startsWith("```json")) {
+                text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+            } else if (text.startsWith("```")) {
+                text = text.replace(/```/g, "").trim();
+            }
+
+            try {
+                const parsed = JSON.parse(text);
+                if (Array.isArray(parsed) && parsed.length >= 3) {
+                    return parsed.slice(0, 3);
+                }
+            } catch (e) {
+                console.error("Failed to parse expanded prompts JSON:", text);
+            }
+
+            // Fallback if parsing fails but text exists, split by lines or return the raw string as best effort
+            const fallbackPrompts = text.split('\n').filter(p => p.trim().length > 10).slice(0, 3);
+            if (fallbackPrompts.length === 3) return fallbackPrompts;
+
+            return [prompt, prompt, prompt]; // Ultimate fallback
+        } catch (error) {
+            console.error("Expand Prompt Error:", error);
+            throw error;
+        }
+    });
+};
+
 export const generateProductScene = async (
     originalImageBase64: string,
     productDescription: string,
     scenePrompt: string,
     model: string,
     aspectRatio: string,
+    creativeMode: boolean = false,
     apiKey?: string,
     referenceImageBase64?: string | null,
     imageSize?: string
@@ -120,17 +175,16 @@ export const generateProductScene = async (
 
             const parts: any[] = [];
 
-            // Image 1: Product Image
-            parts.push({
-                inlineData: {
-                    mimeType,
-                    data,
-                }
-            });
+            // If we have a reference scene, it should be the FIRST image so that image-to-image treats it as the base to edit.
+            let productInstructionIndex = "FIRST";
+            let sceneInstructionIndex = "N/A";
 
-            // Image 2: Scene/Model Reference Image (if applicable)
             if (referenceImageBase64) {
+                productInstructionIndex = "SECOND";
+                sceneInstructionIndex = "FIRST";
+
                 const ref = extractBase64Data(referenceImageBase64);
+                parts.push({ text: "SCENE/ENVIRONMENT REFERENCE (Base Image):" });
                 parts.push({
                     inlineData: {
                         mimeType: ref.mimeType,
@@ -139,25 +193,38 @@ export const generateProductScene = async (
                 });
             }
 
+            // Product Image
+            parts.push({ text: "PRODUCT SUBJECT REFERENCE (Absolute Source of Truth for Product):" });
+            parts.push({
+                inlineData: {
+                    mimeType,
+                    data,
+                }
+            });
+
             const fullTextPrompt = `Create a professional product photoshoot image.
             
-VISUAL PRIORITY:
-1. The PRIMARY source of truth for the product's appearance is the PRODUCT IMAGE (the FIRST image provided).
-${referenceImageBase64 ? '2. The SECOND source of truth for the scene and pose is the SCENE REFERENCE IMAGE (the SECOND image provided).' : ''}
-3. The text description below is SECONDARY, provided only to help understand the product's features.
+You are a master product photographer and digital composite artist. Your task is to generate a realistic photoshoot scene and seamlessly place the provided product into it.
 
-PRODUCT DESCRIPTION (Secondary):
-${productDescription}
+${referenceImageBase64 ? `SCENE REFERENCE INSTRUCTIONS:
+- You must use the SCENE REFERENCE IMAGE (the ${sceneInstructionIndex} image) as your base.
+- Match its exact lighting, shadow direction, camera angle, and environment.
+- Replace the main subject/object in the scene with the user's product.` : `SCENE INSTRUCTIONS:
+- Generate the following environment: "${scenePrompt}"`}
 
-CRITICAL INSTRUCTIONS:
-1. You must reproduce the product from the FIRST image EXACTLY as the main subject. Do not redesign it.
-2. Do NOT change the product's shape, text, logos, fonts, or colors. The product branding must remain sharp, legible, and identical to the product image.
-3. If the text description conflicts with the visual reference, IGNORE the text and follow the FIRST image for the product design.
-4. Place this exact product into the following scene: "${scenePrompt}".
-${referenceImageBase64 ? '5. You must use the SECOND image as a strict reference for the pose, lighting, and environment as dictated by the scene prompt.' : ''}
-6. IMPORTANT FRAME CAUTION: Regardless of the generated image's aspect ratio (e.g. wide, vertical, or square), you MUST ensure the ENTIRE product from the FIRST image is fully visible, proportioned correctly, and appropriately centered/placed. Do NOT crop, stretch, or squash the product to fit the frame.
-7. Adjust the lighting and reflections on the product to match the new environment naturally, but do not distort the product itself.
-8. The result should look like a high-end commercial photograph.`;
+PRODUCT CONSISTENCY INSTRUCTIONS (CRITICAL):
+- The PRODUCT IMAGE (the ${productInstructionIndex} image) is your absolute source of truth for the product's appearance.
+- Ensure the product is placed naturally into the scene.
+- ZERO HALLUCINATION POLICY on the product: You must perfectly preserve the exact shape, typography, logos, and materials from the PRODUCT IMAGE.
+- Do not warp, crop, or reinvent the product. It must remain 100% legible and identical to the reference.
+${creativeMode
+                    ? "- CREATIVE FREEDOM: You may choose dynamic camera angles and scale to fit the scene vibe, but the product itself must remain undistorted."
+                    : "- STRICT PLACEMENT: Ensure the entire product is fully visible and authentically structured in the center of the frame."
+                }
+- Adjust the ambient lighting, reflections, and shadows on the product so it blends realistically into the new environment.
+
+PRODUCT DETAILS FOR CONTEXT:
+${productDescription}`;
 
             parts.push({
                 text: fullTextPrompt,

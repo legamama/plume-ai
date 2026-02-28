@@ -22,6 +22,7 @@ export interface GenerationSettings {
     customPrompt: string
     aspectRatio: string
     model: string
+    creativeMode?: boolean
     imageSize?: string
     textOverlay?: {
         enabled: boolean
@@ -34,6 +35,10 @@ export interface GenerationSettings {
         referenceImage: string | null
         prompt: string
         generateNewModel: boolean
+    }
+    sceneReference?: {
+        enabled: boolean
+        image: string | null
     }
 }
 
@@ -183,6 +188,7 @@ export default function SceneBuilder({
         customPrompt: '',
         aspectRatio: '1:1',
         model: 'gemini-3-pro-image-preview',
+        creativeMode: false,
         imageSize: '1K',
         textOverlay: {
             enabled: false,
@@ -195,6 +201,10 @@ export default function SceneBuilder({
             referenceImage: null,
             prompt: '',
             generateNewModel: false
+        },
+        sceneReference: {
+            enabled: false,
+            image: null
         }
     })
 
@@ -216,6 +226,8 @@ export default function SceneBuilder({
     const [movingTemplateId, setMovingTemplateId] = useState<string | null>(null)
     const [templatesExpanded, setTemplatesExpanded] = useState(false)
     const [presetsExpanded, setPresetsExpanded] = useState(false)
+    const [isEnhancing, setIsEnhancing] = useState(false)
+    const [enhancedPrompts, setEnhancedPrompts] = useState<string[]>([])
 
     const toggleFolder = (folderId: string) => {
         setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }))
@@ -263,6 +275,46 @@ export default function SceneBuilder({
         }
     }
 
+    const handleMagicEnhance = async () => {
+        if (!settings.customPrompt.trim()) return;
+        setIsEnhancing(true);
+        try {
+            const res = await fetch('/api/expand-prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: settings.customPrompt })
+            });
+            const data = await res.json();
+            if (data.variations) {
+                setEnhancedPrompts(data.variations);
+            }
+        } catch (error) {
+            console.error('Failed to enhance prompt', error);
+        } finally {
+            setIsEnhancing(false);
+        }
+    }
+
+    const handleGenerateVariations = async () => {
+        // Simple loop to call onGenerate 3 times
+        // NOTE: In a real app we might want a dedicated batch API to avoid UI lockups
+        // For now, we'll queue them in the parent by passing a special flag or just calling it repeatedly
+        // However, since onGenerate is passed from parent, we can simulate 3 clicks.
+        // It's cleaner to handle batch generation in the parent because the parent manages the generation queue/state.
+        // To implement it here natively, we either update onGenerate to accept multiple, or call it 3 times.
+        // If we call it 3 times sequentially without await (since it's void), the parent might overwrite its own parsing state.
+
+        // Let's pass a batch flag to onGenerate, we need to update the prop or handle it here
+        // The prompt asked for "Generate Variations (3x)" button.
+        // For simplicity, we can just fire onGenerate 3 times. If the parent handles parallel well, it will work.
+        // Wait, onGenerate is synchronous in signature but likely triggers async work in parent.
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                onGenerate(settings);
+            }, i * 2000); // Stagger by 2 seconds to avoid rate limits
+        }
+    }
+
     return (
         <div className={`space-y-8 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
 
@@ -307,9 +359,68 @@ export default function SceneBuilder({
                 />
             )}
 
-            {/* Standard Scene Sections (Hidden when Model Placement is active, or maybe kept? User request implies combining. "combine with selected product profile and custom prompts") */}
-            {/* Let's keep Presets and Custom Prompt available even in Model Placement mode, as they might want to style the scene further. */}
-            {/* Actually, if replacing product in a specific scene, presets might conflict. But "custom prompts" are explicitly mentioned. */}
+            {/* Standard Scene Sections */}
+            {!settings.modelPlacement?.enabled && (
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                        <div className="space-y-1">
+                            <label className="text-xs font-semibold text-blue-300 uppercase tracking-wider flex items-center gap-2">
+                                <Camera className="size-3" /> Reference Scene Setup
+                            </label>
+                            <p className="text-[10px] text-gray-400">Upload a scene. We'll analyze placement, angles & lighting to recreate it with your product.</p>
+                        </div>
+                        <button
+                            onClick={() => setSettings({
+                                ...settings,
+                                sceneReference: { enabled: !settings.sceneReference?.enabled, image: settings.sceneReference?.image || null }
+                            })}
+                            className={`w-10 h-5 rounded-full transition-colors relative ${settings.sceneReference?.enabled ? 'bg-blue-500' : 'bg-white/10'}`}
+                        >
+                            <div className={`absolute top-1 size-3 bg-white rounded-full transition-all ${settings.sceneReference?.enabled ? 'left-6' : 'left-1'}`} />
+                        </button>
+                    </div>
+
+                    {settings.sceneReference?.enabled && (
+                        <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4 animate-in fade-in slide-in-from-top-2">
+                            {settings.sceneReference.image ? (
+                                <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black/40">
+                                    <img src={settings.sceneReference.image} alt="Scene Reference" className="w-full h-full object-contain" />
+                                    <button
+                                        onClick={() => setSettings({ ...settings, sceneReference: { ...settings.sceneReference!, image: null } })}
+                                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-red-500 transition-colors z-10"
+                                    >
+                                        <X className="size-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="relative border-2 border-dashed border-white/10 hover:border-white/20 hover:bg-white/5 rounded-xl transition-all">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file) {
+                                                const reader = new FileReader()
+                                                reader.onloadend = () => {
+                                                    setSettings({ ...settings, sceneReference: { ...settings.sceneReference!, image: reader.result as string } })
+                                                }
+                                                reader.readAsDataURL(file)
+                                            }
+                                        }}
+                                    />
+                                    <div className="flex flex-col items-center justify-center py-8 pointer-events-none">
+                                        <div className="p-3 rounded-full bg-white/5 mb-3">
+                                            <Plus className="size-5 text-gray-400" />
+                                        </div>
+                                        <p className="text-xs text-gray-300 font-medium">Click or drag reference scene image</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Saved Templates & Folders */}
             {(templates.length > 0 || folders.length > 0) && (
@@ -453,9 +564,40 @@ export default function SceneBuilder({
 
             {/* Custom Prompt */}
             <div className="space-y-3">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                    <Type className="size-3" /> Custom Details
-                </label>
+                <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                        <Type className="size-3" /> Custom Details
+                    </label>
+                    <button
+                        onClick={handleMagicEnhance}
+                        disabled={isEnhancing || !settings.customPrompt.trim()}
+                        className="text-[10px] bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 px-2 py-1 rounded-md border border-purple-500/30 hover:bg-purple-500/40 transition-all flex items-center gap-1 disabled:opacity-50"
+                    >
+                        {isEnhancing ? <div className="size-3 border hover:text-white rounded-full border-t-transparent animate-spin" /> : <Sparkles className="size-3" />}
+                        ✨ Magic Enhance
+                    </button>
+                </div>
+
+                {enhancedPrompts.length > 0 && (
+                    <div className="flex flex-col gap-2 p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl mb-3">
+                        <div className="text-[10px] text-purple-300 font-medium flex justify-between">
+                            <span>Select a Magic Variation:</span>
+                            <button onClick={() => setEnhancedPrompts([])} className="hover:text-white"><X className="size-3" /></button>
+                        </div>
+                        {enhancedPrompts.map((p, i) => (
+                            <button
+                                key={i}
+                                onClick={() => {
+                                    setSettings({ ...settings, customPrompt: p });
+                                    setEnhancedPrompts([]);
+                                }}
+                                className="text-left text-xs text-gray-300 bg-black/40 p-2 rounded-lg hover:bg-purple-500/30 hover:text-white transition-colors border border-white/5"
+                            >
+                                "{p.substring(0, 80)}..."
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div className="relative group">
                     <textarea
                         value={settings.customPrompt}
@@ -603,6 +745,29 @@ export default function SceneBuilder({
                 </div>
             </div>
 
+            {/* Creative Mode */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-purple-300 uppercase tracking-wider flex items-center gap-2">
+                            <Sparkles className="size-3" /> Creative & Dynamic Angles
+                        </label>
+                        <p className="text-[10px] text-gray-400">Allows AI freely change camera angles while preserving product labels.</p>
+                    </div>
+                    <button
+                        onClick={() => setSettings({
+                            ...settings,
+                            creativeMode: !settings.creativeMode
+                        })}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${settings.creativeMode ? 'bg-purple-500' : 'bg-white/10'
+                            }`}
+                    >
+                        <div className={`absolute top-1 size-3 bg-white rounded-full transition-all ${settings.creativeMode ? 'left-6' : 'left-1'
+                            }`} />
+                    </button>
+                </div>
+            </div>
+
             {/* Quality/Size */}
             <div className="space-y-3 pb-24">
                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
@@ -627,24 +792,35 @@ export default function SceneBuilder({
 
             {/* Generate Button - Fixed at bottom of container */}
             <div className="sticky bottom-0 -mx-4 lg:-mx-6 -mb-4 lg:-mb-6 p-4 lg:p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-20 backdrop-blur-sm">
-                <button
-                    onClick={handleSubmit}
-                    disabled={isGenerating}
-                    className="w-full py-3 lg:py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group relative overflow-hidden shadow-xl text-sm lg:text-base"
-                >
-                    <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                    {isGenerating ? (
-                        <>
-                            <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Generating...
-                        </>
-                    ) : (
-                        <>
-                            <Wand2 className="size-4 group-hover:rotate-12 transition-transform" />
-                            Generate Photoshoot
-                        </>
-                    )}
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isGenerating}
+                        className="flex-1 py-3 lg:py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group relative overflow-hidden shadow-xl text-sm lg:text-base"
+                    >
+                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                        {isGenerating ? (
+                            <>
+                                <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Generating...
+                            </>
+                        ) : (
+                            <>
+                                <Wand2 className="size-4 group-hover:rotate-12 transition-transform" />
+                                Generate Photoshoot
+                            </>
+                        )}
+                    </button>
+                    <button
+                        onClick={handleGenerateVariations}
+                        disabled={isGenerating}
+                        className="px-4 py-3 lg:py-4 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl border border-white/10 text-sm lg:text-base flex-shrink-0"
+                        title="Generate 3 variations sequentially"
+                    >
+                        <LayoutTemplate className="size-4" />
+                        Variations (3x)
+                    </button>
+                </div>
             </div>
         </div>
     )

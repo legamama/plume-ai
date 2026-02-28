@@ -73,6 +73,26 @@ export async function POST(req: Request) {
             }
 
             referenceImageBase64 = settings.modelPlacement.referenceImage;
+        } else if (settings.sceneReference?.enabled && settings.sceneReference.image) {
+            // Scene Reference Mode
+            const presetScene = PRESET_SCENES[settings.preset as keyof typeof PRESET_SCENES] || PRESET_SCENES.minimalist;
+
+            scenePrompt = `SCENE REFERENCE EXTRAPOLATION TASK:
+                Reference Scene (Second Image): Use the provided reference scene image to understand the scene setup, product placement, camera angles, lighting, and composition.
+                Task: Generate a new image that places the EXACT product from the FIRST image into this environment. Match the camera angle, perspective, and lighting of the reference scene perfectly.
+                
+                IMPORTANT TEXT REMOVAL RULE:
+                - Do NOT include any promotional text, labels, or watermarks that might be present in the SECOND image (the scene reference).
+                - The generated image must be clean of any additional text natively unless specifically requested in the additional context prompt.
+                
+                Product Integration:
+                - Make sure it still keeps the product material, details, and label of the original product precisely.
+                
+                Style & Context:
+                - Style: ${presetScene}
+                ${settings.customPrompt ? `- Additional Context (Can override text rule if user asks for text): ${settings.customPrompt}` : ''}`;
+
+            referenceImageBase64 = settings.sceneReference.image;
         } else {
             // Standard Scene Mode
             const presetScene = PRESET_SCENES[settings.preset as keyof typeof PRESET_SCENES] || PRESET_SCENES.minimalist;
@@ -103,6 +123,7 @@ export async function POST(req: Request) {
             scenePrompt,
             settings.model,
             settings.aspectRatio,
+            settings.creativeMode || false,
             apiKey,
             referenceImageBase64,
             settings.imageSize
