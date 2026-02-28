@@ -298,7 +298,7 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
 
             {/* Fullscreen Modal */}
             {isFullscreen && (
-                <div className="fixed inset-0 z-50 bg-black flex items-center justify-center" onClick={() => setIsFullscreen(false)}>
+                <div className="fixed inset-0 z-[150] bg-black flex items-center justify-center" onClick={() => setIsFullscreen(false)}>
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
@@ -343,7 +343,7 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
 
             {/* Prompt Details Modal */}
             {showPromptDetails && (
-                <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowPromptDetails(false)}>
+                <div className="fixed inset-0 z-[150] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowPromptDetails(false)}>
                     <div className="bg-gray-900 rounded-2xl border border-white/10 max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-xl font-semibold text-white">Generation Details</h2>

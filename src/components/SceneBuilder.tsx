@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, ChevronUp, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X, User } from 'lucide-react'
 import ModelPlacement from './ModelPlacement'
+import { expandPromptText } from '@/lib/gemini'
 
 interface SceneBuilderProps {
     onGenerate: (settings: GenerationSettings) => void
@@ -279,14 +280,10 @@ export default function SceneBuilder({
         if (!settings.customPrompt.trim()) return;
         setIsEnhancing(true);
         try {
-            const res = await fetch('/api/expand-prompt', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: settings.customPrompt })
-            });
-            const data = await res.json();
-            if (data.variations) {
-                setEnhancedPrompts(data.variations);
+            const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined;
+            const variations = await expandPromptText(settings.customPrompt, apiKey);
+            if (variations && variations.length > 0) {
+                setEnhancedPrompts(variations);
             }
         } catch (error) {
             console.error('Failed to enhance prompt', error);

@@ -383,7 +383,7 @@ function GalleryContent() {
             {/* Fullscreen Modal Restyled */}
             {selectedImage && (
                 <div
-                    className="fixed inset-0 z-[100] bg-black/95 sm:bg-black/90 sm:backdrop-blur-xl flex flex-col justify-between animate-in fade-in zoom-in-95 duration-200"
+                    className="fixed inset-0 z-[150] bg-black/95 sm:bg-black/90 sm:backdrop-blur-xl flex flex-col justify-between animate-in fade-in zoom-in-95 duration-200"
                     onClick={() => setSelectedImage(null)}
                 >
                     {/* Top Bar (Mobile friendly) */}

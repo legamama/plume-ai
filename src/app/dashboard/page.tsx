@@ -10,6 +10,25 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import ScrollableContainer from '@/components/ui/ScrollableContainer'
 
 import { useDashboard } from '@/lib/dashboard-context'
+import { analyzeProductImage, generateProductScene } from '@/lib/gemini'
+
+// Preset scene descriptions
+const PRESET_SCENES = {
+    minimalist: "Clean white studio background with professional high-key lighting, soft shadows, minimal props",
+    luxury: "Elegant marble surface with dramatic lighting, premium textures like marble or velvet, elegant composition",
+    nature: "Natural stone podium surrounded by greenery, organic elements like leaves, soft sunlight filtering through trees",
+    neon: "Futuristic cyberpunk vibe with neon blue and pink lights, dark background, vibrant glow effects",
+    cozy: "Warm, inviting wooden table setting with natural window light, cozy home interior atmosphere",
+    floating: "Surreal floating composition with pastel colors (pink, lavender, mint), dreamy ethereal background",
+    industrial: "Raw industrial aesthetic with concrete textures, metallic accents, dramatic shadows, and cool toned lighting",
+    summer: "Bright and sunny beach scene with golden sand, clear blue sky, tropical vibes, and warm natural sunlight",
+    winter: "Crisp winter scene with fresh white snow, frost details, cool blue tones, and soft diffused lighting",
+    lunar: "Festive Lunar New Year theme with red and gold elements, lanterns, traditional patterns, and warm celebratory lighting",
+    sale: "Commercial sale banner style with bold solid background, confetti or geometric shapes, high contrast, and space for text",
+    urban: "Modern urban street scene with city architecture, asphalt textures, blurred city lights in background, and street style vibe",
+    moody: "Dark and moody atmosphere with deep shadows, rich textures, spotlighting on the product, and cinematic look",
+    spa: "Elegant bathroom spa setting with white marble, soft towels, water droplets, bamboo accents, and warm relaxing lighting"
+};
 
 export default function Dashboard() {
     const {
@@ -92,27 +111,12 @@ export default function Dashboard() {
 
                     setUploadedImage(base64Data)
 
-                    const apiKey = localStorage.getItem('plume_gemini_api_key')
+                    const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined
 
-                    const response = await fetch('/api/analyze', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            image: base64Data,
-                            mimeType: mimeType,
-                            apiKey,
-                        }),
-                    })
+                    // Reconstruct the base64 data URL
+                    const imageDataUrl = `data:${mimeType};base64,${base64Data}`
 
-                    if (!response.ok) {
-                        const errorData = await response.json()
-                        throw new Error(errorData.error || 'Analysis failed')
-                    }
-
-                    const data = await response.json()
-                    const analysisText = data.analysis
+                    const analysisText = await analyzeProductImage(imageDataUrl, apiKey)
                     setAnalysis(analysisText)
                     setOriginalAnalysis(analysisText) // Store original for reset
                     setIsEditingAnalysis(false)
@@ -149,28 +153,97 @@ export default function Dashboard() {
         setIsGenerating(true)
         setMobileTab('results') // Switch to results tab automatically on mobile
         try {
-            const apiKey = localStorage.getItem('plume_gemini_api_key')
+            const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined
 
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    image: uploadedImage,
-                    analysis,
-                    settings,
-                    apiKey,
-                }),
-                signal: controller.signal
-            })
+            // Construct the scene prompt
+            let scenePrompt = '';
+            let referenceImageBase64 = null;
 
-            if (!response.ok) {
-                const errorData = await response.json()
-                throw new Error(errorData.error || 'Generation failed')
+            if (settings.modelPlacement?.enabled && settings.modelPlacement.referenceImage) {
+                // Model Placement Mode
+                const presetScene = PRESET_SCENES[settings.preset as keyof typeof PRESET_SCENES] || PRESET_SCENES.minimalist;
+                const styleContext = `
+                Desired Style/Atmosphere: ${presetScene}
+                ${settings.customPrompt ? `Additional Context: ${settings.customPrompt}` : ''}`;
+
+                if (settings.modelPlacement.generateNewModel) {
+                    scenePrompt = `MODEL PLACEMENT & REGENERATION TASK:
+                    Reference Scene: Use the provided reference model image as a POSE and LIGHTING reference only.
+                    Task 1 (Model): Generate a NEW model (new face, new hairstyle) but STRICTLY PRESERVE the exact pose, hand gestures, and body language of the reference image. The new model should look distinct from the original to avoid copyright issues.
+                    Task 2 (Product): Place the analyzed product into this new model's hands/scene exactly where the original object was.
+                    Placement Instructions: ${settings.modelPlacement.prompt || "Replace the object naturally with the analyzed product."}
+                    
+                    Style & Atmosphere:
+                    - Maintain the professional lighting and composition of the reference.
+                    - Apply the following style influence: ${styleContext}`;
+                } else {
+                    scenePrompt = `MODEL PLACEMENT TASK:
+                    Reference Scene: Use the provided reference model image as the base scene.
+                    Task: Replace the product/object in the reference image (e.g. in the model's hand or on the table) with the analyzed product.
+                    Placement Instructions: ${settings.modelPlacement.prompt || "Replace the object naturally with the analyzed product."}
+                    
+                    Style & Atmosphere:
+                    - Maintain the lighting, shadows, and color grading of the reference model image perfectly.
+                    - Apply the following style influence (subtly): ${styleContext}`;
+                }
+
+                referenceImageBase64 = settings.modelPlacement.referenceImage;
+            } else if (settings.sceneReference?.enabled && settings.sceneReference.image) {
+                // Scene Reference Mode
+                const presetScene = PRESET_SCENES[settings.preset as keyof typeof PRESET_SCENES] || PRESET_SCENES.minimalist;
+
+                scenePrompt = `SCENE REFERENCE EXTRAPOLATION TASK:
+                    Reference Scene (Second Image): Use the provided reference scene image to understand the scene setup, product placement, camera angles, lighting, and composition.
+                    Task: Generate a new image that places the EXACT product from the FIRST image into this environment. Match the camera angle, perspective, and lighting of the reference scene perfectly.
+                    
+                    IMPORTANT TEXT REMOVAL RULE:
+                    - Do NOT include any promotional text, labels, or watermarks that might be present in the SECOND image (the scene reference).
+                    - The generated image must be clean of any additional text natively unless specifically requested in the additional context prompt.
+                    
+                    Product Integration:
+                    - Make sure it still keeps the product material, details, and label of the original product precisely.
+                    
+                    Style & Context:
+                    - Style: ${presetScene}
+                    ${settings.customPrompt ? `- Additional Context (Can override text rule if user asks for text): ${settings.customPrompt}` : ''}`;
+
+                referenceImageBase64 = settings.sceneReference.image;
+            } else {
+                // Standard Scene Mode
+                const presetScene = PRESET_SCENES[settings.preset as keyof typeof PRESET_SCENES] || PRESET_SCENES.minimalist;
+                scenePrompt = settings.customPrompt
+                    ? `${presetScene}. ${settings.customPrompt}`
+                    : presetScene;
+
+                // Add text overlay instruction if enabled
+                if (settings.textOverlay?.enabled && settings.textOverlay.text) {
+                    scenePrompt += `\n\nIMPORTANT: Add the text "${settings.textOverlay.text}" to the image. 
+                    Style: ${settings.textOverlay.style}. 
+                    Position: ${settings.textOverlay.position}. 
+                    The text must be sharp, clear, and perfectly readable. It should look like a professional commercial banner or overlay.
+                    CRITICAL: Ensure all characters are rendered correctly, supporting multi-language text including Vietnamese diacritics (e.g., ư, ơ, ê, ô, á, à, ả, ã, ạ). The text should be integrated naturally into the scene but remain legible.`;
+                }
             }
 
-            const data = await response.json()
+            const imageDataUrl = `data:image/jpeg;base64,${uploadedImage}`;
+
+            const { imageUrl, fullPrompt } = await generateProductScene(
+                imageDataUrl,
+                analysis,
+                scenePrompt,
+                settings.model,
+                settings.aspectRatio,
+                settings.creativeMode || false,
+                apiKey,
+                referenceImageBase64,
+                settings.imageSize
+            );
+
+            const data = {
+                id: crypto.randomUUID(),
+                url: imageUrl,
+                prompt: fullPrompt,
+            }
 
             // Include settings in the result for display
             const resultWithSettings = { ...data, settings }
