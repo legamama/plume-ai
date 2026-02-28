@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { Save, Key, Activity, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Save, Key, Activity, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, History, Settings2 } from 'lucide-react'
+import { UPDATE_LOGS } from '@/lib/updateLogs'
 
 export default function SettingsPage() {
     const [apiKey, setApiKey] = useState('')
@@ -11,6 +12,7 @@ export default function SettingsPage() {
     const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle')
     const [testMessage, setTestMessage] = useState('')
     const [usageCount, setUsageCount] = useState(0)
+    const [activeTab, setActiveTab] = useState<'general' | 'updates'>('general')
 
     useEffect(() => {
         // Load settings from local storage
@@ -70,103 +72,161 @@ export default function SettingsPage() {
                         <p className="text-gray-400">Manage your AI configuration and preferences</p>
                     </div>
 
-                    <div className="space-y-6">
-                        {/* API Configuration Card */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 lg:p-8">
-                            <div className="flex items-start gap-4 mb-6">
-                                <div className="p-3 rounded-xl bg-purple-500/20 text-purple-400">
-                                    <Key className="size-6" />
-                                </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1">Gemini API Configuration</h2>
-                                    <p className="text-sm text-gray-400">
-                                        Provide your own Google Gemini API key to bypass system limits and track your own usage.
-                                        Your key is stored locally in your browser.
-                                    </p>
-                                </div>
-                            </div>
+                    <div className="flex items-center gap-6 border-b border-white/10 mb-8">
+                        <button
+                            onClick={() => setActiveTab('general')}
+                            className={`flex items-center gap-2 pb-4 -mb-px border-b-2 transition-colors ${activeTab === 'general'
+                                    ? 'border-white text-white'
+                                    : 'border-transparent text-gray-400 hover:text-white hover:border-white/30'
+                                }`}
+                        >
+                            <Settings2 className="size-4" />
+                            General
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('updates')}
+                            className={`flex items-center gap-2 pb-4 -mb-px border-b-2 transition-colors ${activeTab === 'updates'
+                                    ? 'border-white text-white'
+                                    : 'border-transparent text-gray-400 hover:text-white hover:border-white/30'
+                                }`}
+                        >
+                            <History className="size-4" />
+                            Update Logs
+                        </button>
+                    </div>
 
-                            <div className="space-y-4 max-w-2xl">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-gray-300">API Key</label>
-                                    <div className="relative">
-                                        <input
-                                            type={showKey ? "text" : "password"}
-                                            value={apiKey}
-                                            onChange={(e) => setApiKey(e.target.value)}
-                                            placeholder="AIzaSy..."
-                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500/50 transition-all pr-12"
-                                        />
+                    {activeTab === 'general' ? (
+                        <div className="space-y-6">
+                            {/* API Configuration Card */}
+                            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 lg:p-8">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="p-3 rounded-xl bg-purple-500/20 text-purple-400">
+                                        <Key className="size-6" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-semibold mb-1">Gemini API Configuration</h2>
+                                        <p className="text-sm text-gray-400">
+                                            Provide your own Google Gemini API key to bypass system limits and track your own usage.
+                                            Your key is stored locally in your browser.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 max-w-2xl">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-300">API Key</label>
+                                        <div className="relative">
+                                            <input
+                                                type={showKey ? "text" : "password"}
+                                                value={apiKey}
+                                                onChange={(e) => setApiKey(e.target.value)}
+                                                placeholder="AIzaSy..."
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500/50 transition-all pr-12"
+                                            />
+                                            <button
+                                                onClick={() => setShowKey(!showKey)}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                                            >
+                                                {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                            Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">Get one from Google AI Studio</a>
+                                        </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-3 pt-2">
                                         <button
-                                            onClick={() => setShowKey(!showKey)}
-                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                                            onClick={handleSave}
+                                            className="px-6 py-2.5 rounded-xl bg-white text-black font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
                                         >
-                                            {showKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                                            <Save className="size-4" />
+                                            Save Settings
+                                        </button>
+                                        <button
+                                            onClick={handleTestConnection}
+                                            disabled={isTesting || !apiKey}
+                                            className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {isTesting ? <Loader2 className="size-4 animate-spin" /> : <Activity className="size-4" />}
+                                            Test Connection
                                         </button>
                                     </div>
-                                    <p className="text-xs text-gray-500">
-                                        Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline">Get one from Google AI Studio</a>
-                                    </p>
-                                </div>
 
-                                <div className="flex flex-wrap items-center gap-3 pt-2">
-                                    <button
-                                        onClick={handleSave}
-                                        className="px-6 py-2.5 rounded-xl bg-white text-black font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
-                                    >
-                                        <Save className="size-4" />
-                                        Save Settings
-                                    </button>
-                                    <button
-                                        onClick={handleTestConnection}
-                                        disabled={isTesting || !apiKey}
-                                        className="px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isTesting ? <Loader2 className="size-4 animate-spin" /> : <Activity className="size-4" />}
-                                        Test Connection
-                                    </button>
-                                </div>
-
-                                {/* Test Result Message */}
-                                {testStatus !== 'idle' && (
-                                    <div className={`mt-4 p-4 rounded-xl border flex items-start gap-3 ${testStatus === 'success'
+                                    {/* Test Result Message */}
+                                    {testStatus !== 'idle' && (
+                                        <div className={`mt-4 p-4 rounded-xl border flex items-start gap-3 ${testStatus === 'success'
                                             ? 'bg-green-500/10 border-green-500/20 text-green-400'
                                             : 'bg-red-500/10 border-red-500/20 text-red-400'
-                                        }`}>
-                                        {testStatus === 'success' ? (
-                                            <CheckCircle2 className="size-5 flex-shrink-0 mt-0.5" />
-                                        ) : (
-                                            <AlertCircle className="size-5 flex-shrink-0 mt-0.5" />
-                                        )}
-                                        <span className="text-sm">{testMessage}</span>
+                                            }`}>
+                                            {testStatus === 'success' ? (
+                                                <CheckCircle2 className="size-5 flex-shrink-0 mt-0.5" />
+                                            ) : (
+                                                <AlertCircle className="size-5 flex-shrink-0 mt-0.5" />
+                                            )}
+                                            <span className="text-sm">{testMessage}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Usage Monitoring Card */}
+                            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 lg:p-8">
+                                <div className="flex items-start gap-4 mb-6">
+                                    <div className="p-3 rounded-xl bg-blue-500/20 text-blue-400">
+                                        <Activity className="size-6" />
                                     </div>
-                                )}
+                                    <div>
+                                        <h2 className="text-xl font-semibold mb-1">Usage Monitoring</h2>
+                                        <p className="text-sm text-gray-400">
+                                            Track your local API usage statistics.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="p-4 rounded-xl bg-black/40 border border-white/10">
+                                        <div className="text-sm text-gray-500 mb-1">Total Requests</div>
+                                        <div className="text-2xl font-bold text-white">{usageCount}</div>
+                                    </div>
+                                    {/* Add more stats here if we track them later */}
+                                </div>
                             </div>
                         </div>
-
-                        {/* Usage Monitoring Card */}
-                        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 lg:p-8">
-                            <div className="flex items-start gap-4 mb-6">
-                                <div className="p-3 rounded-xl bg-blue-500/20 text-blue-400">
-                                    <Activity className="size-6" />
+                    ) : (
+                        <div className="space-y-6">
+                            {UPDATE_LOGS.map((log) => (
+                                <div key={log.version} className="bg-white/5 border border-white/10 rounded-2xl p-6 lg:p-8">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 font-mono font-bold">
+                                                v{log.version}
+                                            </div>
+                                            <div>
+                                                <h2 className="text-xl font-semibold">Update {log.version}</h2>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                                            <span className="bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                                                {log.date}
+                                            </span>
+                                            <span className="bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                                                {log.time}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <ul className="space-y-3">
+                                        {log.changes.map((change, i) => (
+                                            <li key={i} className="flex items-start gap-3 text-gray-300">
+                                                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-purple-500/50 flex-shrink-0" />
+                                                <span className="leading-relaxed">{change}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1">Usage Monitoring</h2>
-                                    <p className="text-sm text-gray-400">
-                                        Track your local API usage statistics.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="p-4 rounded-xl bg-black/40 border border-white/10">
-                                    <div className="text-sm text-gray-500 mb-1">Total Requests</div>
-                                    <div className="text-2xl font-bold text-white">{usageCount}</div>
-                                </div>
-                                {/* Add more stats here if we track them later */}
-                            </div>
+                            ))}
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </ProtectedRoute>

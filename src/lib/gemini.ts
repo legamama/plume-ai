@@ -288,7 +288,9 @@ export const cleanSceneImage = async (imageBase64: string, apiKey?: string): Pro
                     ],
                 },
                 config: {
-                    // Specify we want an image generated as response
+                    imageConfig: {
+                        aspectRatio: "1:1"
+                    }
                 }
             });
 

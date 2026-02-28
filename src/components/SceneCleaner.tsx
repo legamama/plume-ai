@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Upload, X, Wand2, Sparkles, Image as ImageIcon, Loader2, ArrowRight, Layers, Check, RefreshCw } from 'lucide-react'
 import Image from 'next/image'
-import { toast } from 'react-hot-toast'
+import { cleanSceneImage, generateSceneVariations } from '@/lib/gemini'
 
 interface SceneCleanerProps {
     onApplyBaseScene: (base64Image: string) => void
@@ -51,19 +51,13 @@ export default function SceneCleaner({ onApplyBaseScene }: SceneCleanerProps) {
         setIsCleaning(true)
         try {
             const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined
-            const res = await fetch('/api/clean-scene', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageBase64: sourceImage, apiKey })
-            })
+            const { imageUrl } = await cleanSceneImage(sourceImage, apiKey)
 
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error || 'Failed to clean scene')
-
-            setCleanedImage(data.imageUrl)
-            toast.success("Scene cleaned successfully!")
+            setCleanedImage(imageUrl)
+            // Success
         } catch (error: any) {
-            toast.error(error.message || "Failed to clean scene. Please try again.")
+            console.error("Clean Scene Error:", error)
+            alert(error.message || "Failed to clean scene. Please try again.")
         } finally {
             setIsCleaning(false)
         }
@@ -74,21 +68,13 @@ export default function SceneCleaner({ onApplyBaseScene }: SceneCleanerProps) {
 
         setIsGeneratingVariations(true)
         try {
-            toast("Generating variations...", { icon: '✨' })
             const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined
-            const res = await fetch('/api/scene-variations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageBase64: cleanedImage, count: 2, apiKey })
-            })
+            const { imageUrls } = await generateSceneVariations(cleanedImage, 2, apiKey)
 
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.error || 'Failed to generate variations')
-
-            setVariations(data.imageUrls)
-            toast.success("Variations generated!")
+            setVariations(imageUrls)
         } catch (error: any) {
-            toast.error(error.message || "Failed to generate variations.")
+            console.error("Variations Error:", error)
+            alert(error.message || "Failed to generate variations.")
         } finally {
             setIsGeneratingVariations(false)
         }
