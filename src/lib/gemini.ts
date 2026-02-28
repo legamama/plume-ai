@@ -263,3 +263,99 @@ ${productDescription}`;
         }
     });
 };
+
+export const cleanSceneImage = async (imageBase64: string, apiKey?: string): Promise<{ imageUrl: string }> => {
+    return withRetry(async () => {
+        try {
+            const ai = getClient(apiKey);
+            const { data, mimeType } = extractBase64Data(imageBase64);
+
+            const prompt = `You are an expert retoucher. Completely erase and remove any primary product subjects, objects, texts, brands, and logos from this image. Seamlessly reconstruct the background and environment to create an empty, pristine, and clean scene. Preserve all original lighting, reflections, shadows, and the overall atmospheric environment flawlessly. Provide an empty background.`;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-3-pro-image-preview', // Use Imagen 3
+                contents: {
+                    role: 'user',
+                    parts: [
+                        { text: "INSTRUCTIONS: " + prompt },
+                        { text: "ORIGINAL IMAGE:" },
+                        {
+                            inlineData: {
+                                mimeType,
+                                data,
+                            },
+                        }
+                    ],
+                },
+                config: {
+                    // Specify we want an image generated as response
+                }
+            });
+
+            for (const part of response.candidates?.[0]?.content?.parts || []) {
+                if (part.inlineData) {
+                    const returnedMimeType = part.inlineData.mimeType || 'image/jpeg';
+                    return {
+                        imageUrl: `data:${returnedMimeType};base64,${part.inlineData.data}`,
+                    };
+                }
+            }
+            throw new Error("No image generated.");
+        } catch (error) {
+            console.error("Clean Scene Error:", error);
+            throw error;
+        }
+    });
+};
+
+export const generateSceneVariations = async (imageBase64: string, count: number, apiKey?: string): Promise<{ imageUrls: string[] }> => {
+    return withRetry(async () => {
+        try {
+            const ai = getClient(apiKey);
+            const { data, mimeType } = extractBase64Data(imageBase64);
+
+            const prompt = `Using this empty scene as a strict reference, generate a variation of this environment. Maintain the exact lighting temperature, angle, and core composition, but subtly alter the surface materials, background props, and textures to create a fresh yet highly consistent architectural or natural setting. Do NOT add any products or main subjects.`;
+
+            // Since generateContent natively generates a single image (or config parameter can specify sampleCount in some API versions),
+            // For now, we generate multiple candidates by executing in parallel if the API doesn't support sampleCount or numberOfImages easily directly via the SDK syntax.
+            const generateOneVariation = async () => {
+                const response = await ai.models.generateContent({
+                    model: 'gemini-3-pro-image-preview',
+                    contents: {
+                        role: 'user',
+                        parts: [
+                            { text: prompt },
+                            {
+                                inlineData: {
+                                    mimeType,
+                                    data,
+                                },
+                            }
+                        ],
+                    }
+                });
+                for (const part of response.candidates?.[0]?.content?.parts || []) {
+                    if (part.inlineData) {
+                        const returnedMimeType = part.inlineData.mimeType || 'image/jpeg';
+                        return `data:${returnedMimeType};base64,${part.inlineData.data}`;
+                    }
+                }
+                throw new Error("No image generated.");
+            };
+
+            const promises = Array.from({ length: count }).map(() => generateOneVariation());
+            const results = await Promise.allSettled(promises);
+
+            const imageUrls = results
+                .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+                .map(r => r.value);
+
+            if (imageUrls.length === 0) throw new Error("Could not generate any variations.");
+
+            return { imageUrls };
+        } catch (error) {
+            console.error("Generate Variations Error:", error);
+            throw error;
+        }
+    });
+};

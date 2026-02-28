@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, ChevronUp, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X, User } from 'lucide-react'
+import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Camera, Factory, Sun, Snowflake, Flame, Tag, Building2, Moon, Bookmark, Trash2, Droplets, FolderPlus, Folder, ChevronRight, ChevronDown, ChevronUp, GripVertical, Plus, MoreVertical, FolderOpen, ArrowUp, ArrowDown, Move, X, User, Eraser } from 'lucide-react'
 import ModelPlacement from './ModelPlacement'
+import SceneCleaner from './SceneCleaner'
 import { expandPromptText } from '@/lib/gemini'
 
 interface SceneBuilderProps {
@@ -229,6 +230,7 @@ export default function SceneBuilder({
     const [presetsExpanded, setPresetsExpanded] = useState(false)
     const [isEnhancing, setIsEnhancing] = useState(false)
     const [enhancedPrompts, setEnhancedPrompts] = useState<string[]>([])
+    const [builderMode, setBuilderMode] = useState<'standard' | 'model_placement' | 'clean_scene'>(settings?.modelPlacement?.enabled ? 'model_placement' : 'standard')
 
     const toggleFolder = (folderId: string) => {
         setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }))
@@ -318,29 +320,58 @@ export default function SceneBuilder({
             {/* Mode Selector */}
             <div className="flex p-1 bg-white/5 rounded-xl border border-white/10">
                 <button
-                    onClick={() => setSettings({ ...settings, modelPlacement: { ...settings.modelPlacement!, enabled: false } })}
-                    className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${!settings.modelPlacement?.enabled ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'
+                    onClick={() => {
+                        setBuilderMode('standard')
+                        setSettings({ ...settings, modelPlacement: { ...settings.modelPlacement!, enabled: false } })
+                    }}
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${builderMode === 'standard' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-white'
                         }`}
                 >
                     <LayoutTemplate className="size-3.5" />
-                    Standard Scene
+                    Standard Room
                 </button>
                 <button
-                    onClick={() => setSettings({ ...settings, modelPlacement: { ...settings.modelPlacement!, enabled: true } })}
-                    className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${settings.modelPlacement?.enabled ? 'bg-purple-500/20 text-purple-400 shadow-sm border border-purple-500/20' : 'text-gray-400 hover:text-white'
+                    onClick={() => {
+                        setBuilderMode('model_placement')
+                        setSettings({ ...settings, modelPlacement: { ...settings.modelPlacement!, enabled: true } })
+                    }}
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${builderMode === 'model_placement' ? 'bg-purple-500/20 text-purple-400 shadow-sm border border-purple-500/20' : 'text-gray-400 hover:text-white'
                         }`}
                 >
                     <User className="size-3.5" />
                     Model Placement
                 </button>
+                <button
+                    onClick={() => setBuilderMode('clean_scene')}
+                    className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-2 ${builderMode === 'clean_scene' ? 'bg-blue-500/20 text-blue-400 shadow-sm border border-blue-500/20' : 'text-gray-400 hover:text-white'
+                        }`}
+                >
+                    <Eraser className="size-3.5" />
+                    Clean Scene
+                </button>
             </div>
 
+            {/* Clean Scene Section */}
+            {builderMode === 'clean_scene' && (
+                <div className="animate-in fade-in slide-in-from-top-2">
+                    <SceneCleaner
+                        onApplyBaseScene={(base64Image) => {
+                            setSettings({
+                                ...settings,
+                                sceneReference: { enabled: true, image: base64Image }
+                            })
+                            setBuilderMode('standard')
+                        }}
+                    />
+                </div>
+            )}
+
             {/* Model Placement Section */}
-            {settings.modelPlacement?.enabled && (
+            {builderMode === 'model_placement' && (
                 <ModelPlacement
-                    referenceImage={settings.modelPlacement.referenceImage}
-                    placementPrompt={settings.modelPlacement.prompt}
-                    generateNewModel={settings.modelPlacement.generateNewModel}
+                    referenceImage={settings.modelPlacement?.referenceImage ?? null}
+                    placementPrompt={settings.modelPlacement?.prompt ?? ''}
+                    generateNewModel={settings.modelPlacement?.generateNewModel ?? false}
                     onImageChange={(img) => setSettings({
                         ...settings,
                         modelPlacement: { ...settings.modelPlacement!, referenceImage: img }
@@ -357,7 +388,7 @@ export default function SceneBuilder({
             )}
 
             {/* Standard Scene Sections */}
-            {!settings.modelPlacement?.enabled && (
+            {builderMode === 'standard' && (
                 <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
                         <div className="space-y-1">
@@ -788,37 +819,39 @@ export default function SceneBuilder({
             </div>
 
             {/* Generate Button - Fixed at bottom of container */}
-            <div className="sticky bottom-0 -mx-4 lg:-mx-6 -mb-4 lg:-mb-6 p-4 lg:p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-20 backdrop-blur-sm">
-                <div className="flex gap-2">
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isGenerating}
-                        className="flex-1 py-3 lg:py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group relative overflow-hidden shadow-xl text-sm lg:text-base"
-                    >
-                        <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                        {isGenerating ? (
-                            <>
-                                <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Generating...
-                            </>
-                        ) : (
-                            <>
-                                <Wand2 className="size-4 group-hover:rotate-12 transition-transform" />
-                                Generate Photoshoot
-                            </>
-                        )}
-                    </button>
-                    <button
-                        onClick={handleGenerateVariations}
-                        disabled={isGenerating}
-                        className="px-4 py-3 lg:py-4 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl border border-white/10 text-sm lg:text-base flex-shrink-0"
-                        title="Generate 3 variations sequentially"
-                    >
-                        <LayoutTemplate className="size-4" />
-                        Variations (3x)
-                    </button>
+            {(builderMode === 'standard' || builderMode === 'model_placement') && (
+                <div className="sticky bottom-0 -mx-4 lg:-mx-6 -mb-4 lg:-mb-6 p-4 lg:p-6 bg-gradient-to-t from-black via-black/95 to-transparent z-20 backdrop-blur-sm">
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={isGenerating}
+                            className="flex-1 py-3 lg:py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2 group relative overflow-hidden shadow-xl text-sm lg:text-base"
+                        >
+                            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                            {isGenerating ? (
+                                <>
+                                    <div className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Wand2 className="size-4 group-hover:rotate-12 transition-transform" />
+                                    Generate Photoshoot
+                                </>
+                            )}
+                        </button>
+                        <button
+                            onClick={handleGenerateVariations}
+                            disabled={isGenerating}
+                            className="px-4 py-3 lg:py-4 rounded-xl bg-white/10 text-white font-semibold hover:bg-white/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xl border border-white/10 text-sm lg:text-base flex-shrink-0"
+                            title="Generate 3 variations sequentially"
+                        >
+                            <LayoutTemplate className="size-4" />
+                            Variations (3x)
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     )
 }
