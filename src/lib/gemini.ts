@@ -204,24 +204,30 @@ export const generateProductScene = async (
 
             const fullTextPrompt = `Create a professional product photoshoot image.
             
-You are a master product photographer and digital composite artist. Your task is to generate a realistic photoshoot scene and seamlessly place the provided product into it.
+You are a master product photographer, 3D render artist, and digital composite expert. Your task is to generate a hyper-realistic photoshoot scene and seamlessly integrate the provided product into it.
 
 ${referenceImageBase64 ? `SCENE REFERENCE INSTRUCTIONS:
-- You must use the SCENE REFERENCE IMAGE (the ${sceneInstructionIndex} image) as your base.
-- Match its exact lighting, shadow direction, camera angle, and environment.
-- Replace the main subject/object in the scene with the user's product.` : `SCENE INSTRUCTIONS:
+- You must use the SCENE REFERENCE IMAGE (the ${sceneInstructionIndex} image) as your absolute guide for environment, composition, and lighting.
+- Match the exact light source direction, color temperature (Kelvin), and intensity of the reference.
+- Match the camera's focal length, depth of field (bokeh), and perspective.
+- Seamlessly replace the subject in the scene with the user's product, ensuring it occupies the same physical space and scale.` : `SCENE INSTRUCTIONS:
 - Generate the following environment: "${scenePrompt}"`}
 
 PRODUCT CONSISTENCY INSTRUCTIONS (CRITICAL):
-- The PRODUCT IMAGE (the ${productInstructionIndex} image) is your absolute source of truth for the product's appearance.
-- Ensure the product is placed naturally into the scene.
-- ZERO HALLUCINATION POLICY on the product: You must perfectly preserve the exact shape, typography, logos, and materials from the PRODUCT IMAGE.
-- Do not warp, crop, or reinvent the product. It must remain 100% legible and identical to the reference.
+- The PRODUCT IMAGE (the ${productInstructionIndex} image) is your absolute source of truth for the product's design.
+- ZERO HALLUCINATION POLICY: Correctly preserve all branding, typography, logos, and structural details.
+- The product must remain 100% legible and look like a high-end physical object.
+
+REALISTIC INTEGRATION & LIGHTING (PRIME DIRECTIVE):
+- GLOBAL ILLUMINATION: The product must be illuminated by the scene's light sources. If there's a sunset, the product should have warm, directional highlights. If it's a studio setup, use consistent key, fill, and rim lighting.
+- MATERIAL INTERACTION: Reflect the environment on the product's surface. Matte surfaces should show soft color bleeds from the surroundings; glossy/metallic surfaces MUST show sharp, ray-traced reflections of the environment and light sources.
+- CONTACT SHADOWS & OCCLUSION: Generate physically accurate contact shadows where the product touches a surface (Ambient Occlusion). Ensure shadow softness matches the scene's light quality (hard light = crisp shadows, soft/diffused light = blurry shadows).
+- REFLECTIONS & CAUSTICS: If the product is on a reflective surface (like marble or glass), it must cast a realistic reflection. If the product is glass/liquid, it should refract light and cast caustics on its base.
+
 ${creativeMode
-                    ? "- CREATIVE FREEDOM: You may choose dynamic camera angles and scale to fit the scene vibe, but the product itself must remain undistorted."
-                    : "- STRICT PLACEMENT: Ensure the entire product is fully visible and authentically structured in the center of the frame."
+                    ? "- CREATIVE FREEDOM: You may choose dynamic camera angles (low-angle, macro, wide-shot) to maximize the cinematic appeal, provided the product remains undistorted."
+                    : "- STRICT PLACEMENT: Place the product as the hero center-piece, ensuring it is fully visible and authentically structured."
                 }
-- Adjust the ambient lighting, reflections, and shadows on the product so it blends realistically into the new environment.
 
 PRODUCT DETAILS FOR CONTEXT:
 ${productDescription}`;

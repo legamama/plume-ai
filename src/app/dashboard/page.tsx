@@ -175,6 +175,7 @@ export default function Dashboard() {
                     
                     Style & Atmosphere:
                     - Maintain the professional lighting and composition of the reference.
+                    - Ensure the product casts realistic shadows on the model's hand/clothing.
                     - Apply the following style influence: ${styleContext}`;
                 } else {
                     scenePrompt = `MODEL PLACEMENT TASK:
@@ -182,9 +183,10 @@ export default function Dashboard() {
                     Task: Replace the product/object in the reference image (e.g. in the model's hand or on the table) with the analyzed product.
                     Placement Instructions: ${settings.modelPlacement.prompt || "Replace the object naturally with the analyzed product."}
                     
-                    Style & Atmosphere:
-                    - Maintain the lighting, shadows, and color grading of the reference model image perfectly.
-                    - Apply the following style influence (subtly): ${styleContext}`;
+                    Integration & Lighting:
+                    - Match the lighting, shadows, and color grading of the reference model image perfectly.
+                    - The product must reflect its surrounding skin tones and environment.
+                    - Use the following style influence (subtly): ${styleContext}`;
                 }
 
                 referenceImageBase64 = settings.modelPlacement.referenceImage;
@@ -200,12 +202,14 @@ export default function Dashboard() {
                     - Do NOT include any promotional text, labels, or watermarks that might be present in the SECOND image (the scene reference).
                     - The generated image must be clean of any additional text natively unless specifically requested in the additional context prompt.
                     
-                    Product Integration:
-                    - Make sure it still keeps the product material, details, and label of the original product precisely.
+                    Product Integration & Materials:
+                    - The product must reflect the environment (colors, highlights) from the reference scene.
+                    - It must cast realistic contact shadows and catch the same light sources as the original objects in the scene.
+                    - Keep the product material, details, and labels precisely as analyzed.
                     
                     Style & Context:
                     - Style: ${presetScene}
-                    ${settings.customPrompt ? `- Additional Context (Can override text rule if user asks for text): ${settings.customPrompt}` : ''}`;
+                    ${settings.customPrompt ? `- Additional Context: ${settings.customPrompt}` : ''}`;
 
                 referenceImageBase64 = settings.sceneReference.image;
             } else {
