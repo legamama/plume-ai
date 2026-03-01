@@ -7,6 +7,14 @@ export interface UpdateLog {
 
 export const UPDATE_LOGS: UpdateLog[] = [
     {
+        version: '0.1.2',
+        date: '2026-03-01',
+        time: '08:09 PM',
+        changes: [
+            'Automated app version and update logs on GitHub push workflow'
+        ]
+    },
+    {
         version: '0.1.1',
         date: '2026-03-01',
         time: '03:11 AM',
