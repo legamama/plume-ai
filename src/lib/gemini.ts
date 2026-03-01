@@ -202,37 +202,23 @@ export const generateProductScene = async (
                 }
             });
 
-            const fullTextPrompt = `Create a professional product photoshoot image.
-            
-You are a master product photographer, 3D render artist, and digital composite expert. Your task is to generate a hyper-realistic photoshoot scene and seamlessly integrate the provided product into it.
+            const basePrompt = referenceImageBase64
+                ? `A hyper-realistic commercial product photoshoot integrating the exact product from the SECOND image into the exact background, lighting, and composition of the FIRST scene reference image. The product replaces the original subject perfectly. `
+                : `A high-end, hyper-realistic commercial product photoshoot featuring the exact product shown in the reference image. `;
 
-PRODUCT CONSISTENCY INSTRUCTIONS (CRITICAL & NON-NEGOTIABLE):
-- The PRODUCT IMAGE (the ${productInstructionIndex} image) is the absolute definitive source of truth for the product's design, shape, labels, texts, and colors.
-- ZERO HALLUCINATION POLICY: You MUST NOT invent, alter, or hallucinate any details on the product itself. This includes text, logos, branding, structural shape, or colors.
-- The product must remain 100% identical to the reference image and look like a high-end physical object.
-- The product is independent of the scene. Do not let the scene details or environment styling bleed into or alter the physical design of the product.
+            const environmentPrompt = referenceImageBase64
+                ? `The environment, lighting, and camera angle must perfectly match the scene reference image.`
+                : `Environment and Background: ${scenePrompt}. The product is placed naturally within this setting.`;
 
-PRODUCT DETAILS FOR STRICT ADHERENCE:
+            const fullTextPrompt = `${basePrompt}
+${environmentPrompt}
+
+CRITICAL: The product must look EXACTLY as it does in the reference image. Preserve 100% of its original design, structural shape, colors, labels, and text. DO NOT hallucinate, mutate, or blend the background into the product's design.
+
+Product Exact Specifications:
 ${productDescription}
 
-${referenceImageBase64 ? `SCENE REFERENCE INSTRUCTIONS:
-- You must use the SCENE REFERENCE IMAGE (the ${sceneInstructionIndex} image) as your absolute guide for environment, composition, and lighting.
-- Match the exact light source direction, color temperature (Kelvin), and intensity of the reference.
-- Match the camera's focal length, depth of field (bokeh), and perspective.
-- Seamlessly replace the subject in the scene with the user's product, ensuring it occupies the same physical space and scale.` : `ENVIRONMENT & BACKGROUND INSTRUCTIONS:
-- Generate the following environment for the product to be placed in: "${scenePrompt}"
-- Ensure the environment complements the product but DOES NOT alter the product's original details.`}
-
-REALISTIC INTEGRATION & LIGHTING (PRIME DIRECTIVE):
-- GLOBAL ILLUMINATION: The product must be illuminated by the scene's light sources. If there's a sunset, the product should have warm, directional highlights. If it's a studio setup, use consistent key, fill, and rim lighting.
-- MATERIAL INTERACTION: Reflect the environment on the product's surface. Matte surfaces should show soft color bleeds from the surroundings; glossy/metallic surfaces MUST show sharp, ray-traced reflections of the environment and light sources.
-- CONTACT SHADOWS & OCCLUSION: Generate physically accurate contact shadows where the product touches a surface (Ambient Occlusion). Ensure shadow softness matches the scene's light quality (hard light = crisp shadows, soft/diffused light = blurry shadows).
-- REFLECTIONS & CAUSTICS: If the product is on a reflective surface (like marble or glass), it must cast a realistic reflection. If the product is glass/liquid, it should refract light and cast caustics on its base.
-
-${creativeMode
-                    ? "- CREATIVE FREEDOM: You may choose dynamic camera angles (low-angle, macro, wide-shot) to maximize the cinematic appeal, provided the absolute integrity of the product is maintained."
-                    : "- STRICT PLACEMENT: Place the product as the hero center-piece, ensuring it is fully visible, upright, and authentically structured."
-                }`;
+Lighting and Composition: Proper physical lighting, global illumination, contact shadows, and realistic reflections. ${creativeMode ? "Dynamic and cinematic camera angles." : "Perfectly centered and prominent placement."}`;
 
             parts.push({
                 text: fullTextPrompt,
