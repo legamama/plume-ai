@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
-import { Save, Key, Activity, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, History, Settings2 } from 'lucide-react'
+import { Save, Key, Activity, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, History, Settings2, Sparkles } from 'lucide-react'
 import { UPDATE_LOGS } from '@/lib/updateLogs'
 
 export default function SettingsPage() {
@@ -12,6 +12,7 @@ export default function SettingsPage() {
     const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle')
     const [testMessage, setTestMessage] = useState('')
     const [usageCount, setUsageCount] = useState(0)
+    const [quality, setQuality] = useState<'pro' | 'flash'>('flash')
     const [activeTab, setActiveTab] = useState<'general' | 'updates'>('general')
 
     useEffect(() => {
@@ -21,10 +22,14 @@ export default function SettingsPage() {
 
         const storedUsage = localStorage.getItem('plume_api_usage_count')
         if (storedUsage) setUsageCount(parseInt(storedUsage, 10))
+
+        const storedQuality = localStorage.getItem('plume_image_quality') as 'pro' | 'flash' | null
+        if (storedQuality) setQuality(storedQuality)
     }, [])
 
     const handleSave = () => {
         localStorage.setItem('plume_gemini_api_key', apiKey)
+        localStorage.setItem('plume_image_quality', quality)
         alert('Settings saved!')
     }
 
@@ -76,8 +81,8 @@ export default function SettingsPage() {
                         <button
                             onClick={() => setActiveTab('general')}
                             className={`flex items-center gap-2 pb-4 -mb-px border-b-2 transition-colors ${activeTab === 'general'
-                                    ? 'border-white text-white'
-                                    : 'border-transparent text-gray-400 hover:text-white hover:border-white/30'
+                                ? 'border-white text-white'
+                                : 'border-transparent text-gray-400 hover:text-white hover:border-white/30'
                                 }`}
                         >
                             <Settings2 className="size-4" />
@@ -86,8 +91,8 @@ export default function SettingsPage() {
                         <button
                             onClick={() => setActiveTab('updates')}
                             className={`flex items-center gap-2 pb-4 -mb-px border-b-2 transition-colors ${activeTab === 'updates'
-                                    ? 'border-white text-white'
-                                    : 'border-transparent text-gray-400 hover:text-white hover:border-white/30'
+                                ? 'border-white text-white'
+                                : 'border-transparent text-gray-400 hover:text-white hover:border-white/30'
                                 }`}
                         >
                             <History className="size-4" />
@@ -135,7 +140,38 @@ export default function SettingsPage() {
                                         </p>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center gap-3 pt-2">
+                                    <div className="space-y-4 max-w-2xl">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-gray-300">Generation Quality</label>
+                                            <div className="flex bg-black/40 border border-white/10 rounded-xl p-1 relative">
+                                                <button
+                                                    onClick={() => setQuality('flash')}
+                                                    className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all z-10 ${quality === 'flash' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                                >
+                                                    Cost Optimized (Fast)
+                                                </button>
+                                                <button
+                                                    onClick={() => setQuality('pro')}
+                                                    className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all z-10 flex items-center justify-center gap-1.5 ${quality === 'pro' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                                >
+                                                    High Quality (Pro) <Sparkles className="size-3 text-purple-400" />
+                                                </button>
+
+                                                {/* Sliding Selection Background */}
+                                                <div
+                                                    className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white/10 rounded-lg transition-transform duration-300 ease-in-out border border-white/5"
+                                                    style={{ transform: quality === 'flash' ? 'translateX(0)' : 'translateX(100%)', left: '4px' }}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-500 pt-1">
+                                                {quality === 'flash'
+                                                    ? 'Uses Imagen 3 Fast (~$0.02/image). Recommended for rapid prototyping and saving credits.'
+                                                    : 'Uses Imagen 3 Pro (~$0.13/image). Recommended for final hero shots with maximum fidelity.'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center gap-3 pt-4">
                                         <button
                                             onClick={handleSave}
                                             className="px-6 py-2.5 rounded-xl bg-white text-black font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"

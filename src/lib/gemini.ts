@@ -180,12 +180,16 @@ export const generateProductScene = async (
     creativeMode: boolean = false,
     apiKey?: string,
     referenceImageBase64?: string | null,
-    imageSize?: string
+    imageSize?: string,
+    quality: 'pro' | 'flash' = 'flash'
 ): Promise<{ imageUrl: string, fullPrompt: string }> => {
     return withRetry(async () => {
         try {
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(originalImageBase64);
+
+            // Model Selection based on Quality Toggle
+            const targetModel = quality === 'flash' ? 'gemini-3-flash-image-preview' : 'gemini-3-pro-image-preview';
 
             // Make sure aspect ratio is supported by Imagen 3
             let finalAspectRatio = aspectRatio;
@@ -197,7 +201,7 @@ export const generateProductScene = async (
             const imageConfig: any = {
                 aspectRatio: finalAspectRatio,
             };
-            if (model === 'gemini-3-pro-image-preview') {
+            if (targetModel === 'gemini-3-pro-image-preview') {
                 imageConfig.imageSize = imageSize || "1K";
             }
             const config = { imageConfig };
@@ -262,7 +266,7 @@ ${productDescription}
             });
 
             const response = await ai.models.generateContent({
-                model: model,
+                model: targetModel,
                 // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
                 contents: {
                     role: 'user',
@@ -289,16 +293,17 @@ ${productDescription}
     });
 };
 
-export const cleanSceneImage = async (imageBase64: string, apiKey?: string): Promise<{ imageUrl: string }> => {
+export const cleanSceneImage = async (imageBase64: string, apiKey?: string, quality: 'pro' | 'flash' = 'flash'): Promise<{ imageUrl: string }> => {
     return withRetry(async () => {
         try {
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(imageBase64);
+            const targetModel = quality === 'flash' ? 'gemini-3-flash-image-preview' : 'gemini-3-pro-image-preview';
 
             const prompt = `You are an expert retoucher. Completely erase and remove any primary product subjects, objects, texts, brands, and logos from this image. Seamlessly reconstruct the background and environment to create an empty, pristine, and clean scene. Preserve all original lighting, reflections, shadows, and the overall atmospheric environment flawlessly. Provide an empty background.`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-image-preview', // Use Imagen 3
+                model: targetModel,
                 contents: {
                     role: 'user',
                     parts: [
@@ -335,11 +340,12 @@ export const cleanSceneImage = async (imageBase64: string, apiKey?: string): Pro
     });
 };
 
-export const generateSceneVariations = async (imageBase64: string, count: number, apiKey?: string): Promise<{ imageUrls: string[] }> => {
+export const generateSceneVariations = async (imageBase64: string, count: number, apiKey?: string, quality: 'pro' | 'flash' = 'flash'): Promise<{ imageUrls: string[] }> => {
     return withRetry(async () => {
         try {
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(imageBase64);
+            const targetModel = quality === 'flash' ? 'gemini-3-flash-image-preview' : 'gemini-3-pro-image-preview';
 
             const prompt = `Using this empty scene as a strict reference, generate a variation of this environment. Maintain the exact lighting temperature, angle, and core composition, but subtly alter the surface materials, background props, and textures to create a fresh yet highly consistent architectural or natural setting. Do NOT add any products or main subjects.`;
 
@@ -347,7 +353,7 @@ export const generateSceneVariations = async (imageBase64: string, count: number
             // For now, we generate multiple candidates by executing in parallel if the API doesn't support sampleCount or numberOfImages easily directly via the SDK syntax.
             const generateOneVariation = async () => {
                 const response = await ai.models.generateContent({
-                    model: 'gemini-3-pro-image-preview',
+                    model: targetModel,
                     contents: {
                         role: 'user',
                         parts: [

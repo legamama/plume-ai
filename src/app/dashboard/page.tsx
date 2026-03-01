@@ -154,6 +154,7 @@ export default function Dashboard() {
         setMobileTab('results') // Switch to results tab automatically on mobile
         try {
             const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined
+            const qualitySetting = localStorage.getItem('plume_image_quality') as 'pro' | 'flash' | null || 'flash'
 
             // Construct the scene prompt
             let scenePrompt = '';
@@ -240,7 +241,8 @@ export default function Dashboard() {
                 settings.creativeMode || false,
                 apiKey,
                 referenceImageBase64,
-                settings.imageSize
+                settings.imageSize,
+                qualitySetting
             );
 
             const data = {
