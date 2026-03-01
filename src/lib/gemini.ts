@@ -51,7 +51,7 @@ export const analyzeProductImage = async (imageBase64: string, apiKey?: string):
             const { data, mimeType } = extractBase64Data(imageBase64);
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-1.5-flash',
                 // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
                 contents: {
                     role: 'user',
@@ -65,12 +65,13 @@ export const analyzeProductImage = async (imageBase64: string, apiKey?: string):
                         {
                             text: `Analyze this product image in meticulous detail for a professional commercial photoshoot. 
             Describe the physical characteristics of the product, including:
-            1. Exact text, brand names, slogans, and logos visible (quote them accurately).
-            2. Precise colors, materials (e.g., matte plastic, brushed metal, glass), and surface textures.
-            3. Exact geometrical shape, form, and proportions.
+            1. Exact text, brand names, slogans, barcodes, and logos visible (quote them accurately and describe their placement).
+            2. Exact colors, materials (e.g., matte plastic, brushed metal, clear glass, glossy paper), and surface textures. Mention how these materials react to light (e.g., highly reflective, translucent, opaque, casts soft shadows).
+            3. Exact geometrical shape, form, and structural proportions.
             4. Details of packaging, caps, lids, labels, and how they relate geometrically.
             
-            This description will be used as a strict specification for an image generator. The generator MUST PRESERVE these details perfectly without altering existing text, colors, shapes, or logos when placing it in a new setting. Ensure your description emphasizes the absolute necessity of maintaining the product's 1:1 original appearance.`,
+            This description will be used as a strict specification for an image generator. The generator MUST PRESERVE these details perfectly without altering existing text, colors, shapes, or logos when placing it in a new setting. 
+            Explicitly state what MUST NOT CHANGE (e.g., "The brand text 'X' must remain perfectly legible and unwarped", "The transparent glass must remain transparent"). Ensure your description emphasizes the absolute necessity of maintaining the product's 1:1 original appearance and material properties.`,
                         },
                     ],
                 },
@@ -98,13 +99,17 @@ export const expandPromptText = async (prompt: string, apiKey?: string): Promise
             The user wants to generate a product image with the following base idea: "${prompt}".
             
             Your task is to write 3 distinct, highly detailed cinematic prompts based on this idea, suitable for a text-to-image AI.
-            EACH prompt must include lighting style, background environment, camera details (e.g. 8k, 35mm lens, macro), and mood.
+            EACH prompt must include:
+            1. Lighting style (e.g., global illumination, volumetric lighting, caustics, softbox, harsh sunlight).
+            2. Background environment with specific materials and textures.
+            3. Camera details (e.g. 8k, 35mm lens, macro, shallow depth of field).
+            4. Mood and atmosphere.
             
             Respond ONLY with a valid JSON array of strings containing the 3 prompts. Do not include markdown formatting like \`\`\`json.
             Example format: ["Prompt 1...", "Prompt 2...", "Prompt 3..."]`;
 
             const response = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-1.5-flash',
                 contents: fullTextPrompt,
             });
 
@@ -203,22 +208,30 @@ export const generateProductScene = async (
             });
 
             const basePrompt = referenceImageBase64
-                ? `A hyper-realistic commercial product photoshoot integrating the exact product from the SECOND image into the exact background, lighting, and composition of the FIRST scene reference image. The product replaces the original subject perfectly. `
-                : `A high-end, hyper-realistic commercial product photoshoot featuring the exact product shown in the reference image. `;
+                ? `[OBJECTIVE]
+A hyper-realistic commercial product photoshoot integrating the exact product from the SECOND image into the exact background, lighting, and composition of the FIRST scene reference image. The product replaces the original subject perfectly. `
+                : `[OBJECTIVE]
+A high-end, hyper-realistic commercial product photoshoot featuring the exact product shown in the reference image. `;
 
             const environmentPrompt = referenceImageBase64
-                ? `The environment, lighting, and camera angle must perfectly match the scene reference image.`
-                : `Environment and Background: ${scenePrompt}. The product is placed naturally within this setting.`;
+                ? `[ENVIRONMENT & LIGHTING]
+The environment, lighting, and camera angle must perfectly match the scene reference image. Determine the most natural and realistic angle and perspective for the product within this specific environment.`
+                : `[ENVIRONMENT & LIGHTING]
+Environment and Background: ${scenePrompt}. 
+Placement: Determine the most natural and realistic angle, perspective, and placement for the product within the described environment. It does NOT need to face forward if the scene implies a different angle.
+Lighting and Composition: Proper physical lighting, global illumination, contact shadows, and realistic reflections that ADAPT correctly to the product's new angle and the environment's light sources. ${creativeMode ? "Use dynamic, tilted, or stylized cinematic camera angles." : "Use highly professional, natural commercial photography angles."}`;
 
             const fullTextPrompt = `${basePrompt}
 ${environmentPrompt}
 
-CRITICAL: The product must look EXACTLY as it does in the reference image. Preserve 100% of its original design, structural shape, colors, labels, and text. DO NOT hallucinate, mutate, or blend the background into the product's design.
-
-Product Exact Specifications:
+[PRODUCT SPECIFICATIONS]
 ${productDescription}
 
-Lighting and Composition: Proper physical lighting, global illumination, contact shadows, and realistic reflections. ${creativeMode ? "Dynamic and cinematic camera angles." : "Perfectly centered and prominent placement."}`;
+[CRITICAL CONSTRAINTS]
+1. PRESERVE DETAILS: The product's internal details must look EXACTLY as they do in the reference image. Preserve 100% of its original design, structural shape, colors, materials, labels, and text. 
+2. DYNAMIC PLACEMENT: You MUST rotate, scale, and adjust the perspective of the ENTIRE product to fit naturally into the scene. However, you MUST NOT alter the internal structural shape or layout of the product itself.
+3. ADAPTIVE LIGHTING: Any cast shadows, contact shadows, or reflections MUST geometrically align with the new angle of the product and the light source.
+4. NO HALLUCINATIONS: Do not mutate or blend the background into the product's design. Any text or logos mentioned MUST remain perfectly legible and undistorted relative to the new angle. DO NOT add invented text.`;
 
             parts.push({
                 text: fullTextPrompt,
