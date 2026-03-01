@@ -44,14 +44,39 @@ const withRetry = async <T>(operation: () => Promise<T>, maxRetries = 3): Promis
     throw lastError;
 };
 
+// Fallback logic for basic text/vision generation to handle varying API key access levels
+const generateWithFallback = async (ai: any, baseConfig: any) => {
+    const fallbacks = [
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-8b',
+        'gemini-1.5-pro',
+        'gemini-2.5-flash',
+        'gemini-1.0-pro'
+    ];
+    let lastError: any = null;
+
+    for (const model of fallbacks) {
+        try {
+            const response = await ai.models.generateContent({
+                ...baseConfig,
+                model
+            });
+            if (response) return response;
+        } catch (error: any) {
+            console.warn(`[Fallback Warning] Model ${model} failed:`, error?.message);
+            lastError = error;
+        }
+    }
+    throw lastError || new Error("All fallback generation models failed.");
+};
+
 export const analyzeProductImage = async (imageBase64: string, apiKey?: string): Promise<string> => {
     return withRetry(async () => {
         try {
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(imageBase64);
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
+            const response = await generateWithFallback(ai, {
                 // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
                 contents: {
                     role: 'user',
@@ -108,8 +133,7 @@ export const expandPromptText = async (prompt: string, apiKey?: string): Promise
             Respond ONLY with a valid JSON array of strings containing the 3 prompts. Do not include markdown formatting like \`\`\`json.
             Example format: ["Prompt 1...", "Prompt 2...", "Prompt 3..."]`;
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-1.5-flash',
+            const response = await generateWithFallback(ai, {
                 contents: fullTextPrompt,
             });
 
@@ -136,7 +160,7 @@ export const expandPromptText = async (prompt: string, apiKey?: string): Promise
             }
 
             // Fallback if parsing fails but text exists, split by lines or return the raw string as best effort
-            const fallbackPrompts = text.split('\n').filter(p => p.trim().length > 10).slice(0, 3);
+            const fallbackPrompts = text.split('\n').filter((p: string) => p.trim().length > 10).slice(0, 3);
             if (fallbackPrompts.length === 3) return fallbackPrompts;
 
             return [prompt, prompt, prompt]; // Ultimate fallback

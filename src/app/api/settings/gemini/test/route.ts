@@ -13,20 +13,38 @@ export async function POST(req: Request) {
         }
 
         const ai = new GoogleGenAI({ apiKey });
+        const modelsToTest = [
+            'gemini-1.5-flash',
+            'gemini-1.5-flash-8b',
+            'gemini-1.5-pro',
+            'gemini-2.5-flash',
+            'gemini-1.0-pro'
+        ];
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: {
-                role: 'user',
-                parts: [{ text: "Hello" }]
+        let successfulModel = null;
+        let lastError = null;
+
+        for (const model of modelsToTest) {
+            try {
+                const response = await ai.models.generateContent({
+                    model: model,
+                    contents: { role: 'user', parts: [{ text: "Hello" }] }
+                });
+                if (response) {
+                    successfulModel = model;
+                    break;
+                }
+            } catch (error: any) {
+                console.warn(`Model ${model} failed:`, error?.message);
+                lastError = error;
             }
-        });
-
-        if (!response) {
-            throw new Error("No response from Gemini API");
         }
 
-        return NextResponse.json({ success: true, message: "Connection successful" });
+        if (!successfulModel) {
+            throw lastError || new Error("No response from Gemini API");
+        }
+
+        return NextResponse.json({ success: true, message: `Connection successful using model: ${successfulModel}` });
     } catch (error: any) {
         console.error("Test connection error:", error);
         return NextResponse.json(
