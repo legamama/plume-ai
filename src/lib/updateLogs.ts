@@ -7,6 +7,15 @@ export interface UpdateLog {
 
 export const UPDATE_LOGS: UpdateLog[] = [
     {
+        version: '0.1.3',
+        date: '2026-03-02',
+        time: '11:19 AM',
+        changes: [
+            'Replaced native window dialogs with custom UI dialog components',
+            'Added global dialog context providers for alert, confirm, and prompt'
+        ]
+    },
+    {
         version: '0.1.2',
         date: '2026-03-01',
         time: '08:09 PM',

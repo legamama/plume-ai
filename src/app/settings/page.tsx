@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import { Save, Key, Activity, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, History, Settings2, Sparkles } from 'lucide-react'
 import { UPDATE_LOGS } from '@/lib/updateLogs'
+import { useDialog } from '@/lib/dialog-context'
 
 export default function SettingsPage() {
+    const { alert } = useDialog()
     const [apiKey, setApiKey] = useState('')
     const [showKey, setShowKey] = useState(false)
     const [isTesting, setIsTesting] = useState(false)
@@ -27,10 +29,10 @@ export default function SettingsPage() {
         if (storedQuality) setQuality(storedQuality)
     }, [])
 
-    const handleSave = () => {
+    const handleSave = async () => {
         localStorage.setItem('plume_gemini_api_key', apiKey)
         localStorage.setItem('plume_image_quality', quality)
-        alert('Settings saved!')
+        await alert('Settings saved!')
     }
 
     const handleTestConnection = async () => {

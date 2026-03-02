@@ -5,6 +5,7 @@ import { Wand2, LayoutTemplate, Ratio, Type, Sparkles, Armchair, Leaf, Crown, Ca
 import ModelPlacement from './ModelPlacement'
 import SceneCleaner from './SceneCleaner'
 import { expandPromptText } from '@/lib/gemini'
+import { useDialog } from '@/lib/dialog-context'
 
 interface SceneBuilderProps {
     onGenerate: (settings: GenerationSettings) => void
@@ -107,6 +108,7 @@ function TemplateItem({ template, applyTemplate, onDelete, onMove, folders, movi
     movingId: string | null,
     setMovingId: (id: string | null) => void
 }) {
+    const { confirm } = useDialog()
     return (
         <div
             className="group relative flex items-center gap-3 p-2 rounded-lg border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 transition-all cursor-pointer"
@@ -158,8 +160,8 @@ function TemplateItem({ template, applyTemplate, onDelete, onMove, folders, movi
 
                 {onDelete && (
                     <button
-                        onClick={() => {
-                            if (confirm('Delete this template?')) {
+                        onClick={async () => {
+                            if (await confirm('Delete this template?')) {
                                 onDelete(template.id)
                             }
                         }}
@@ -184,6 +186,7 @@ export default function SceneBuilder({
     settings: controlledSettings,
     onSettingsChange
 }: SceneBuilderProps) {
+    const { alert } = useDialog()
     // Local state for uncontrolled usage
     const [localSettings, setLocalSettings] = useState<GenerationSettings>({
         preset: 'minimalist',
@@ -265,7 +268,7 @@ export default function SceneBuilder({
         // In a real app, you'd calculate the new index based on neighbors
         // Here we'll just alert as a placeholder or implement basic swap if we had the full list context easily
         // For now, let's just show it's possible
-        alert('Reordering not fully implemented in this view. Drag and drop would be better.')
+        await alert('Reordering not fully implemented in this view. Drag and drop would be better.')
     }
 
     const handleSubmit = () => {

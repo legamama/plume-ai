@@ -10,6 +10,7 @@ import ProtectedRoute from '@/components/ProtectedRoute'
 import ScrollableContainer from '@/components/ui/ScrollableContainer'
 
 import { useDashboard } from '@/lib/dashboard-context'
+import { useDialog } from '@/lib/dialog-context'
 import { analyzeProductImage, generateProductScene } from '@/lib/gemini'
 
 // Preset scene descriptions
@@ -40,6 +41,7 @@ export default function Dashboard() {
         sceneSettings, setSceneSettings,
         resetWorkspace
     } = useDashboard()
+    const { alert, confirm, prompt } = useDialog()
 
     const [isUploading, setIsUploading] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
@@ -86,11 +88,11 @@ export default function Dashboard() {
             if (success) {
                 setTemplates(prev => prev.filter(t => t.id !== id))
             } else {
-                alert('Failed to delete template')
+                await alert('Failed to delete template')
             }
         } catch (error) {
             console.error('Error deleting template:', error)
-            alert('Failed to delete template')
+            await alert('Failed to delete template')
         }
     }
 
@@ -126,14 +128,14 @@ export default function Dashboard() {
                     localStorage.setItem('plume_api_usage_count', (currentUsage + 1).toString())
                 } catch (error: any) {
                     console.error('Error analyzing image:', error)
-                    alert(`Failed to analyze image: ${error.message || 'Unknown error'}. Please check console for details.`)
+                    await alert(`Failed to analyze image: ${error.message || 'Unknown error'}. Please check console for details.`)
                 } finally {
                     setIsUploading(false)
                 }
             }
         } catch (error: any) {
             console.error('Error reading file:', error)
-            alert('Failed to read file')
+            await alert('Failed to read file')
             setIsUploading(false)
         }
     }
@@ -280,7 +282,7 @@ export default function Dashboard() {
                 return
             }
             console.error('Error generating image:', error)
-            alert(`Failed to generate image: ${error.message || 'Unknown error'}. Please check console for details.`)
+            await alert(`Failed to generate image: ${error.message || 'Unknown error'}. Please check console for details.`)
         } finally {
             if (abortControllerRef.current === controller) {
                 setIsGenerating(false)
@@ -299,12 +301,12 @@ export default function Dashboard() {
 
     const handleSaveProfile = async () => {
         if (!uploadedImage || !analysis) {
-            alert('Please upload and analyze a product first')
+            await alert('Please upload and analyze a product first')
             return
         }
 
         // Prompt user for profile name FIRST (before setting any state)
-        const profileName = prompt('Enter a name for this product profile:')
+        const profileName = await prompt('Enter a name for this product profile:')
         if (!profileName || profileName.trim() === '') {
             return // User cancelled or entered empty name
         }
@@ -327,10 +329,10 @@ export default function Dashboard() {
             // Reload profiles
             await loadProfiles()
 
-            alert(`Profile "${profileName}" saved successfully!`)
+            await alert(`Profile "${profileName}" saved successfully!`)
         } catch (error: any) {
             console.error('Error saving profile:', error)
-            alert(`Failed to save profile: ${error.message || 'Unknown error'}`)
+            await alert(`Failed to save profile: ${error.message || 'Unknown error'}`)
         } finally {
             setIsSaving(false)
         }
@@ -358,14 +360,14 @@ export default function Dashboard() {
                     // Let's keep current settings to allow applying profile to current scene.
                 }
             })
-            .catch(error => {
+            .catch(async error => {
                 console.error('Error loading profile:', error)
-                alert('Failed to load profile')
+                await alert('Failed to load profile')
             })
     }
 
     const handleDeleteProfile = async (profileId: string, profileName: string) => {
-        if (!confirm(`Delete profile "${profileName}"?`)) return
+        if (!(await confirm(`Delete profile "${profileName}"?`))) return
 
         try {
             const { deleteProduct } = await import('@/lib/supabase-utils')
@@ -382,7 +384,7 @@ export default function Dashboard() {
             }
         } catch (error) {
             console.error('Error deleting profile:', error)
-            alert('Failed to delete profile. Please try again.')
+            await alert('Failed to delete profile. Please try again.')
         }
     }
 
@@ -427,7 +429,7 @@ export default function Dashboard() {
             setIsReorderingProfiles(false)
         } catch (error) {
             console.error('Error saving order:', error)
-            alert('Failed to save order')
+            await alert('Failed to save order')
         }
     }
 
@@ -481,8 +483,8 @@ export default function Dashboard() {
                                     Saved Profiles
                                 </h2>
                                 <button
-                                    onClick={() => {
-                                        if (confirm('Are you sure you want to clear the current workspace?')) {
+                                    onClick={async () => {
+                                        if (await confirm('Are you sure you want to clear the current workspace?')) {
                                             resetWorkspace()
                                         }
                                     }}

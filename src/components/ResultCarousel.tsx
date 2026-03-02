@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight, Download, Maximize2, Share2, X, Save, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import ScrollableContainer from '@/components/ui/ScrollableContainer'
+import { useDialog } from '@/lib/dialog-context'
 
 interface GeneratedImage {
     id: string
@@ -29,6 +30,7 @@ interface ResultCarouselProps {
 }
 
 export default function ResultCarousel({ images, onTemplateSaved }: ResultCarouselProps) {
+    const { alert, prompt } = useDialog()
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [showPromptDetails, setShowPromptDetails] = useState(false)
@@ -110,12 +112,12 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
             }, 100)
         } catch (error) {
             console.error('Download failed:', error)
-            alert('Failed to download image. Please try again.')
+            await alert('Failed to download image. Please try again.')
         }
     }
 
     const handleSaveTemplate = async () => {
-        const templateName = prompt('Enter a name for this template:')
+        const templateName = await prompt('Enter a name for this template:')
         if (!templateName || templateName.trim() === '') return
 
         try {
@@ -125,11 +127,11 @@ export default function ResultCarousel({ images, onTemplateSaved }: ResultCarous
                 currentImage.prompt,
                 currentImage.settings
             )
-            alert('Template saved successfully!')
+            await alert('Template saved successfully!')
             if (onTemplateSaved) onTemplateSaved()
         } catch (error: any) {
             console.error('Error saving template:', error)
-            alert(`Failed to save template: ${error.message || 'Unknown error'}`)
+            await alert(`Failed to save template: ${error.message || 'Unknown error'}`)
         }
     }
 

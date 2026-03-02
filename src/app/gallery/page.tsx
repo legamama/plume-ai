@@ -5,6 +5,7 @@ import { getGenerations, deleteGeneration } from '@/lib/supabase-utils'
 import Image from 'next/image'
 import { Download, Trash2, Clock, Package, ChevronDown, ChevronUp, Sparkles, X, ChevronLeft, ChevronRight, Share2, Info, CheckSquare, Check } from 'lucide-react'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import { useDialog } from '@/lib/dialog-context'
 
 interface Generation {
     id: string
@@ -20,6 +21,7 @@ interface Generation {
 }
 
 function GalleryContent() {
+    const { alert, confirm } = useDialog()
     const [generations, setGenerations] = useState<Generation[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedImage, setSelectedImage] = useState<Generation | null>(null)
@@ -41,7 +43,7 @@ function GalleryContent() {
 
     const handleDelete = async (id: string, e?: React.MouseEvent) => {
         e?.stopPropagation()
-        if (!confirm('Are you sure you want to delete this masterpiece?')) return
+        if (!(await confirm('Are you sure you want to delete this masterpiece?'))) return
 
         const success = await deleteGeneration(id)
         if (success) {
@@ -76,7 +78,7 @@ function GalleryContent() {
             window.URL.revokeObjectURL(url)
         } catch (error) {
             console.error('Download failed:', error)
-            alert('Failed to download image')
+            await alert('Failed to download image')
         }
     }
 
@@ -128,7 +130,7 @@ function GalleryContent() {
 
     const handleBulkDelete = async () => {
         if (selectedIds.size === 0) return
-        if (!confirm(`Are you sure you want to delete ${selectedIds.size} item(s)?`)) return
+        if (!(await confirm(`Are you sure you want to delete ${selectedIds.size} item(s)?`))) return
 
         setLoading(true)
         for (const id of Array.from(selectedIds)) {

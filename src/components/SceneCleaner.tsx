@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { Upload, X, Wand2, Sparkles, Image as ImageIcon, Loader2, ArrowRight, Layers, Check, RefreshCw } from 'lucide-react'
 import Image from 'next/image'
 import { cleanSceneImage, generateSceneVariations } from '@/lib/gemini'
+import { useDialog } from '@/lib/dialog-context'
 
 interface SceneCleanerProps {
     onApplyBaseScene: (base64Image: string) => void
 }
 
 export default function SceneCleaner({ onApplyBaseScene }: SceneCleanerProps) {
+    const { alert } = useDialog()
     const [sourceImage, setSourceImage] = useState<string | null>(null)
     const [cleanedImage, setCleanedImage] = useState<string | null>(null)
     const [isCleaning, setIsCleaning] = useState(false)
@@ -57,7 +59,7 @@ export default function SceneCleaner({ onApplyBaseScene }: SceneCleanerProps) {
             // Success
         } catch (error: any) {
             console.error("Clean Scene Error:", error)
-            alert(error.message || "Failed to clean scene. Please try again.")
+            await alert(error.message || "Failed to clean scene. Please try again.")
         } finally {
             setIsCleaning(false)
         }
@@ -74,7 +76,7 @@ export default function SceneCleaner({ onApplyBaseScene }: SceneCleanerProps) {
             setVariations(imageUrls)
         } catch (error: any) {
             console.error("Variations Error:", error)
-            alert(error.message || "Failed to generate variations.")
+            await alert(error.message || "Failed to generate variations.")
         } finally {
             setIsGeneratingVariations(false)
         }
