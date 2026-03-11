@@ -12,7 +12,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1alpha' } });
         const modelsToTest = [
             'gemini-1.5-flash',
             'gemini-1.5-flash-8b',

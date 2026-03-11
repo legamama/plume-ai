@@ -18,6 +18,8 @@ interface SceneBuilderProps {
     // Controlled state props
     settings?: GenerationSettings
     onSettingsChange?: (settings: GenerationSettings) => void
+    // Product context for magic enhance
+    productAnalysis?: string | null
 }
 
 export interface GenerationSettings {
@@ -90,6 +92,12 @@ const MODELS = [
         name: 'Gemini 3.0 Pro',
         description: 'Highest fidelity, best detail preservation.',
         badge: 'Recommended'
+    },
+    {
+        id: 'gemini-3.1-flash-image-preview',
+        name: 'Gemini 3.1 Flash',
+        description: 'Latest flash model, fast with great quality.',
+        badge: 'New'
     },
     {
         id: 'gemini-2.5-flash-image',
@@ -184,7 +192,8 @@ export default function SceneBuilder({
     onRefreshTemplates,
     onDeleteTemplate,
     settings: controlledSettings,
-    onSettingsChange
+    onSettingsChange,
+    productAnalysis
 }: SceneBuilderProps) {
     const { alert } = useDialog()
     // Local state for uncontrolled usage
@@ -286,7 +295,7 @@ export default function SceneBuilder({
         setIsEnhancing(true);
         try {
             const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined;
-            const variations = await expandPromptText(settings.customPrompt, apiKey);
+            const variations = await expandPromptText(settings.customPrompt, apiKey, productAnalysis || undefined);
             if (variations && variations.length > 0) {
                 setEnhancedPrompts(variations);
             }

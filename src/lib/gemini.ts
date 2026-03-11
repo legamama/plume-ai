@@ -5,7 +5,11 @@ const getClient = (apiKey?: string) => {
     if (!key) {
         throw new Error("API Key not found. Please set the GEMINI_API_KEY environment variable or provide one.");
     }
-    return new GoogleGenAI({ apiKey: key });
+    // Use v1alpha API version — required for image generation models like
+    // gemini-3-pro-image-preview and gemini-3.1-flash-image-preview.
+    // The default v1beta does NOT support these models, causing 404 errors
+    // on deployed environments (Vercel/Netlify).
+    return new GoogleGenAI({ apiKey: key, httpOptions: { apiVersion: 'v1alpha' } });
 };
 
 // Helper to strip the data:image/png;base64, prefix
@@ -21,20 +25,22 @@ const extractBase64Data = (dataUrl: string): { data: string; mimeType: string } 
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Retry wrapper for API calls to handle 503 overloaded errors
-const withRetry = async <T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> => {
+const withRetry = async <T>(operation: () => Promise<T>, maxRetries = 5): Promise<T> => {
     let lastError: any;
     for (let i = 0; i < maxRetries; i++) {
         try {
             return await operation();
         } catch (error: any) {
             lastError = error;
-            // Check for 503 (Service Unavailable) or generic "overloaded" message
-            const isOverloaded = error?.status === 503 || error?.code === 503 || error?.message?.includes('overloaded');
+            // Check for 503 (Service Unavailable) or generic "overloaded" / "high demand" message
+            const isOverloaded = error?.status === 503 || error?.code === 503 ||
+                error?.message?.includes('overloaded') || error?.message?.includes('high demand') ||
+                error?.message?.includes('UNAVAILABLE');
 
             if (isOverloaded && i < maxRetries - 1) {
-                // Exponential backoff: 1s, 2s, 4s... plus random jitter
-                const delay = Math.pow(2, i) * 1000 + Math.random() * 500;
-                console.warn(`Gemini API overloaded. Retrying in ${Math.round(delay)}ms... (Attempt ${i + 1}/${maxRetries})`);
+                // Exponential backoff: 3s, 6s, 12s, 24s... plus random jitter
+                const delay = Math.pow(2, i) * 3000 + Math.random() * 1000;
+                console.warn(`Gemini API overloaded. Retrying in ${Math.round(delay / 1000)}s... (Attempt ${i + 1}/${maxRetries})`);
                 await wait(delay);
                 continue;
             }
@@ -47,11 +53,10 @@ const withRetry = async <T>(operation: () => Promise<T>, maxRetries = 3): Promis
 // Fallback logic for basic text/vision generation to handle varying API key access levels
 const generateWithFallback = async (ai: any, baseConfig: any) => {
     const fallbacks = [
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-1.5-pro',
         'gemini-2.5-flash',
-        'gemini-1.0-pro'
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
     ];
     let lastError: any = null;
 
@@ -77,7 +82,6 @@ export const analyzeProductImage = async (imageBase64: string, apiKey?: string):
             const { data, mimeType } = extractBase64Data(imageBase64);
 
             const response = await generateWithFallback(ai, {
-                // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
                 contents: {
                     role: 'user',
                     parts: [
@@ -88,15 +92,34 @@ export const analyzeProductImage = async (imageBase64: string, apiKey?: string):
                             },
                         },
                         {
-                            text: `Analyze this product image in meticulous detail for a professional commercial photoshoot. 
-            Describe the physical characteristics of the product, including:
-            1. Exact text, brand names, slogans, barcodes, and logos visible (quote them accurately and describe their placement).
-            2. Exact colors, materials (e.g., matte plastic, brushed metal, clear glass, glossy paper), and surface textures. Mention how these materials react to light (e.g., highly reflective, translucent, opaque, casts soft shadows).
-            3. Exact geometrical shape, form, and structural proportions.
-            4. Details of packaging, caps, lids, labels, and how they relate geometrically.
-            
-            This description will be used as a strict specification for an image generator. The generator MUST PRESERVE these details perfectly without altering existing text, colors, shapes, or logos when placing it in a new setting. 
-            Explicitly state what MUST NOT CHANGE (e.g., "The brand text 'X' must remain perfectly legible and unwarped", "The transparent glass must remain transparent"). Ensure your description emphasizes the absolute necessity of maintaining the product's 1:1 original appearance and material properties.`,
+                            text: `You are a product photography expert. Analyze this product image with extreme precision for use in AI image generation.
+
+Provide your analysis in the following structured format:
+
+**PRODUCT TYPE:** [What the product is, e.g. "glass bottle of perfume", "matte black wireless earbuds case"]
+
+**TEXT & LOGOS:**
+- List every piece of visible text, brand name, slogan, barcode exactly as written
+- Describe placement, font style, and size relative to the product
+- Note: "[exact text]" on [location] in [color] [font description]
+
+**COLORS & MATERIALS:**
+- Primary color(s) with specific shades (e.g. "deep emerald green", not just "green")
+- Material type and surface finish (e.g. "frosted glass with matte finish", "brushed aluminum")
+- How the material interacts with light (reflective, translucent, opaque, matte, glossy)
+
+**SHAPE & GEOMETRY:**
+- Overall form factor and proportions
+- Key structural features (caps, lids, curves, edges, handles)
+- Approximate proportions/ratios between parts
+
+**MUST NOT CHANGE (Critical Constraints):**
+- List specific elements that must remain EXACTLY as-is in any generated image
+- Example: "The gold logo 'BRAND' on the front must remain perfectly legible"
+- Example: "The transparent glass body must remain transparent with visible liquid inside"
+- Example: "The red cap-to-body ratio must be preserved"
+
+Be extremely specific. This description will be used as the authoritative specification to prevent hallucination in image generation.`,
                         },
                     ],
                 },
@@ -115,20 +138,27 @@ export const analyzeProductImage = async (imageBase64: string, apiKey?: string):
     });
 };
 
-export const expandPromptText = async (prompt: string, apiKey?: string): Promise<string[]> => {
+export const expandPromptText = async (prompt: string, apiKey?: string, productAnalysis?: string): Promise<string[]> => {
     return withRetry(async () => {
         try {
             const ai = getClient(apiKey);
 
+            const productContext = productAnalysis
+                ? `\n\nIMPORTANT CONTEXT - The product being photographed has these characteristics:\n${productAnalysis.substring(0, 500)}\n\nYour prompts should describe environments that COMPLEMENT this product. Do NOT describe the product itself in your prompts — only describe the scene, lighting, and atmosphere around it.`
+                : '';
+
             const fullTextPrompt = `You are a professional product photographer and creative director. 
             The user wants to generate a product image with the following base idea: "${prompt}".
+            ${productContext}
             
-            Your task is to write 3 distinct, highly detailed cinematic prompts based on this idea, suitable for a text-to-image AI.
-            EACH prompt must include:
-            1. Lighting style (e.g., global illumination, volumetric lighting, caustics, softbox, harsh sunlight).
-            2. Background environment with specific materials and textures.
-            3. Camera details (e.g. 8k, 35mm lens, macro, shallow depth of field).
-            4. Mood and atmosphere.
+            Your task is to write 3 distinct, highly detailed cinematic SCENE prompts based on this idea, suitable for a text-to-image AI.
+            EACH prompt must describe ONLY the environment/scene (NOT the product itself) and include:
+            1. Lighting style (e.g., global illumination, volumetric lighting, caustics, softbox, harsh sunlight with specific color temperature).
+            2. Background environment with specific materials, textures, and props.
+            3. Camera details (e.g. 8K, 35mm lens, macro, shallow depth of field, eye-level angle).
+            4. Mood, atmosphere, and color palette of the scene.
+            
+            Make each prompt distinctly different in mood and setting while staying relevant to the base idea.
             
             Respond ONLY with a valid JSON array of strings containing the 3 prompts. Do not include markdown formatting like \`\`\`json.
             Example format: ["Prompt 1...", "Prompt 2...", "Prompt 3..."]`;
@@ -188,8 +218,8 @@ export const generateProductScene = async (
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(originalImageBase64);
 
-            // Model Selection based on Quality Toggle
-            const targetModel = quality === 'flash' ? 'gemini-3-flash-image-preview' : 'gemini-3-pro-image-preview';
+            // Model Selection based on Quality Toggle. Note: Google currently only provides the pro version via API for Imagen 3.
+            const targetModel = 'gemini-3-pro-image-preview';
 
             // Make sure aspect ratio is supported by Imagen 3
             let finalAspectRatio = aspectRatio;
@@ -208,16 +238,36 @@ export const generateProductScene = async (
 
             const parts: any[] = [];
 
-            // If we have a reference scene, it should be the FIRST image so that image-to-image treats it as the base to edit.
-            let productInstructionIndex = "FIRST";
-            let sceneInstructionIndex = "N/A";
+            // === CONCISE CAPTION-STYLE PROMPT ===
+            // Image generation models work best with short, descriptive photography captions.
+            // Long instruction lists dilute attention away from the reference image.
+            // BUT: we preserve the user's full scene/custom details — only the meta-instructions are kept short.
+            let fullTextPrompt: string;
 
             if (referenceImageBase64) {
-                productInstructionIndex = "SECOND";
-                sceneInstructionIndex = "FIRST";
+                // Scene reference mode: composite product into scene
+                fullTextPrompt = `Edit this image: place the exact product from the first photo into the scene from the second photo. Keep every detail, label, color, and shape of the product identical to the reference. Professional product photography, realistic lighting and shadows.`;
+            } else {
+                // Standard mode: generate scene around product
+                const cameraStyle = creativeMode
+                    ? "dynamic cinematic angle, creative composition"
+                    : "professional commercial photography, eye-level product shot";
 
+                fullTextPrompt = `Professional product photoshoot: place this exact product in the following scene setting — ${scenePrompt}. Keep the product IDENTICAL to the reference photo — same shape, colors, labels, text, and proportions. ${cameraStyle}, realistic lighting with natural shadows and reflections, 8K quality.`;
+            }
+
+            // PART ORDER: Product image FIRST (strongest visual anchor), then brief text instruction.
+            // The model should "see" the product before reading what to do with it.
+            parts.push({
+                inlineData: {
+                    mimeType,
+                    data,
+                }
+            });
+
+            // Optional: Scene reference image
+            if (referenceImageBase64) {
                 const ref = extractBase64Data(referenceImageBase64);
-                parts.push({ text: "SCENE/ENVIRONMENT REFERENCE (Base Image):" });
                 parts.push({
                     inlineData: {
                         mimeType: ref.mimeType,
@@ -226,66 +276,67 @@ export const generateProductScene = async (
                 });
             }
 
-            // Product Image
-            parts.push({ text: "PRODUCT SUBJECT REFERENCE (Absolute Source of Truth for Product):" });
-            parts.push({
-                inlineData: {
-                    mimeType,
-                    data,
-                }
-            });
-
-            const basePrompt = referenceImageBase64
-                ? `[OBJECTIVE]
-A hyper-realistic commercial product photoshoot integrating the exact product from the SECOND image into the exact background, lighting, and composition of the FIRST scene reference image. The product replaces the original subject perfectly. `
-                : `[OBJECTIVE]
-A high-end, hyper-realistic commercial product photoshoot featuring the exact product shown in the reference image. `;
-
-            const environmentPrompt = referenceImageBase64
-                ? `[ENVIRONMENT & LIGHTING]
-The environment, lighting, and camera angle must perfectly match the scene reference image. Determine the most natural and realistic angle and perspective for the product within this specific environment.`
-                : `[ENVIRONMENT & LIGHTING]
-Environment and Background: ${scenePrompt}. 
-Placement: Determine the most natural and realistic angle, perspective, and placement for the product within the described environment. It does NOT need to face forward if the scene implies a different angle.
-Lighting and Composition: Proper physical lighting, global illumination, contact shadows, and realistic reflections that ADAPT correctly to the product's new angle and the environment's light sources. ${creativeMode ? "Use dynamic, tilted, or stylized cinematic camera angles." : "Use highly professional, natural commercial photography angles."}`;
-
-            const fullTextPrompt = `${basePrompt}
-${environmentPrompt}
-
-[PRODUCT SPECIFICATIONS]
-${productDescription}
-
-[CRITICAL CONSTRAINTS]
-1. PRESERVE DETAILS: The product's internal details must look EXACTLY as they do in the reference image. Preserve 100% of its original design, structural shape, colors, materials, labels, and text. 
-2. DYNAMIC PLACEMENT: You MUST rotate, scale, and adjust the perspective of the ENTIRE product to fit naturally into the scene. However, you MUST NOT alter the internal structural shape or layout of the product itself.
-3. ADAPTIVE LIGHTING: Any cast shadows, contact shadows, or reflections MUST geometrically align with the new angle of the product and the light source.
-4. NO HALLUCINATIONS: Do not mutate or blend the background into the product's design. Any text or logos mentioned MUST remain perfectly legible and undistorted relative to the new angle. DO NOT add invented text.`;
-
+            // Text prompt LAST and SHORT — this is a caption, not an instruction manual
             parts.push({
                 text: fullTextPrompt,
             });
 
-            const response = await ai.models.generateContent({
-                model: targetModel,
-                // FIX: Per @google/genai guidelines, use a Content object with a `parts` array for multi-part input.
-                contents: {
-                    role: 'user',
-                    parts: parts,
-                },
-                config: config,
-            });
+            // Image generation models to try in order of preference
+            const IMAGE_MODELS = [
+                'gemini-3-pro-image-preview',
+                'gemini-3.1-flash-image-preview',
+                'gemini-2.5-flash-image',
+                'gemini-2.0-flash-preview-image-generation',
+            ];
 
-            for (const part of response.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) {
-                    const mimeType = part.inlineData.mimeType || 'image/jpeg';
-                    return {
-                        imageUrl: `data:${mimeType};base64,${part.inlineData.data}`,
-                        fullPrompt: fullTextPrompt
-                    };
+            let lastModelError: any = null;
+            for (const currentModel of IMAGE_MODELS) {
+                try {
+                    // imageSize is only supported by gemini-3-pro-image-preview
+                    const modelConfig: any = { imageConfig: { aspectRatio: finalAspectRatio } };
+                    if (currentModel === 'gemini-3-pro-image-preview') {
+                        modelConfig.imageConfig.imageSize = imageSize || "1K";
+                    }
+
+                    console.log(`[Image Gen] Trying model: ${currentModel}`);
+                    const response = await ai.models.generateContent({
+                        model: currentModel,
+                        contents: {
+                            role: 'user',
+                            parts: parts,
+                        },
+                        config: modelConfig,
+                    });
+
+                    for (const part of response.candidates?.[0]?.content?.parts || []) {
+                        if (part.inlineData) {
+                            const mimeType = part.inlineData.mimeType || 'image/jpeg';
+                            console.log(`[Image Gen] Success with model: ${currentModel}`);
+                            return {
+                                imageUrl: `data:${mimeType};base64,${part.inlineData.data}`,
+                                fullPrompt: fullTextPrompt
+                            };
+                        }
+                    }
+                    throw new Error("No image in response.");
+                } catch (modelError: any) {
+                    lastModelError = modelError;
+                    const isRetryable = modelError?.status === 503 || modelError?.code === 503 ||
+                        modelError?.status === 404 || modelError?.code === 404 ||
+                        modelError?.message?.includes('503') || modelError?.message?.includes('UNAVAILABLE') ||
+                        modelError?.message?.includes('404') || modelError?.message?.includes('NOT_FOUND') ||
+                        modelError?.message?.includes('is not found') ||
+                        modelError?.message?.includes('high demand') || modelError?.message?.includes('overloaded');
+
+                    if (isRetryable && currentModel !== IMAGE_MODELS[IMAGE_MODELS.length - 1]) {
+                        console.warn(`[Image Gen] Model ${currentModel} failed (${modelError?.status || 'unknown'}), falling back to next model...`);
+                        continue;
+                    }
+                    throw modelError;
                 }
             }
 
-            throw new Error("No image generated.");
+            throw lastModelError || new Error("No image generated.");
         } catch (error) {
             console.error("Generation Error:", error);
             throw error;
@@ -298,41 +349,55 @@ export const cleanSceneImage = async (imageBase64: string, apiKey?: string, qual
         try {
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(imageBase64);
-            const targetModel = quality === 'flash' ? 'gemini-3-flash-image-preview' : 'gemini-3-pro-image-preview';
+
+            const IMAGE_MODELS = [
+                'gemini-3-pro-image-preview',
+                'gemini-3.1-flash-image-preview',
+                'gemini-2.5-flash-image',
+                'gemini-2.0-flash-preview-image-generation',
+            ];
 
             const prompt = `You are an expert retoucher. Completely erase and remove any primary product subjects, objects, texts, brands, and logos from this image. Seamlessly reconstruct the background and environment to create an empty, pristine, and clean scene. Preserve all original lighting, reflections, shadows, and the overall atmospheric environment flawlessly. Provide an empty background.`;
 
-            const response = await ai.models.generateContent({
-                model: targetModel,
-                contents: {
-                    role: 'user',
-                    parts: [
-                        { text: "INSTRUCTIONS: " + prompt },
-                        { text: "ORIGINAL IMAGE:" },
-                        {
-                            inlineData: {
-                                mimeType,
-                                data,
-                            },
-                        }
-                    ],
-                },
-                config: {
-                    imageConfig: {
-                        aspectRatio: "1:1"
-                    }
-                }
-            });
+            const contentParts = [
+                { text: "INSTRUCTIONS: " + prompt },
+                { text: "ORIGINAL IMAGE:" },
+                { inlineData: { mimeType, data } }
+            ];
 
-            for (const part of response.candidates?.[0]?.content?.parts || []) {
-                if (part.inlineData) {
-                    const returnedMimeType = part.inlineData.mimeType || 'image/jpeg';
-                    return {
-                        imageUrl: `data:${returnedMimeType};base64,${part.inlineData.data}`,
-                    };
+            let lastModelError: any = null;
+            for (const currentModel of IMAGE_MODELS) {
+                try {
+                    console.log(`[Clean Scene] Trying model: ${currentModel}`);
+                    const response = await ai.models.generateContent({
+                        model: currentModel,
+                        contents: { role: 'user', parts: contentParts },
+                        config: { imageConfig: { aspectRatio: "1:1" } }
+                    });
+
+                    for (const part of response.candidates?.[0]?.content?.parts || []) {
+                        if (part.inlineData) {
+                            const returnedMimeType = part.inlineData.mimeType || 'image/jpeg';
+                            return { imageUrl: `data:${returnedMimeType};base64,${part.inlineData.data}` };
+                        }
+                    }
+                    throw new Error("No image in response.");
+                } catch (modelError: any) {
+                    lastModelError = modelError;
+                    const isRetryable = modelError?.status === 503 || modelError?.code === 503 ||
+                        modelError?.status === 404 || modelError?.code === 404 ||
+                        modelError?.message?.includes('503') || modelError?.message?.includes('UNAVAILABLE') ||
+                        modelError?.message?.includes('404') || modelError?.message?.includes('NOT_FOUND') ||
+                        modelError?.message?.includes('is not found') ||
+                        modelError?.message?.includes('high demand') || modelError?.message?.includes('overloaded');
+                    if (isRetryable && currentModel !== IMAGE_MODELS[IMAGE_MODELS.length - 1]) {
+                        console.warn(`[Clean Scene] Model ${currentModel} failed (${modelError?.status || 'unknown'}), falling back...`);
+                        continue;
+                    }
+                    throw modelError;
                 }
             }
-            throw new Error("No image generated.");
+            throw lastModelError || new Error("No image generated.");
         } catch (error) {
             console.error("Clean Scene Error:", error);
             throw error;
@@ -345,35 +410,52 @@ export const generateSceneVariations = async (imageBase64: string, count: number
         try {
             const ai = getClient(apiKey);
             const { data, mimeType } = extractBase64Data(imageBase64);
-            const targetModel = quality === 'flash' ? 'gemini-3-flash-image-preview' : 'gemini-3-pro-image-preview';
+
+            const IMAGE_MODELS = [
+                'gemini-3-pro-image-preview',
+                'gemini-3.1-flash-image-preview',
+                'gemini-2.5-flash-image',
+                'gemini-2.0-flash-preview-image-generation',
+            ];
 
             const prompt = `Using this empty scene as a strict reference, generate a variation of this environment. Maintain the exact lighting temperature, angle, and core composition, but subtly alter the surface materials, background props, and textures to create a fresh yet highly consistent architectural or natural setting. Do NOT add any products or main subjects.`;
 
-            // Since generateContent natively generates a single image (or config parameter can specify sampleCount in some API versions),
-            // For now, we generate multiple candidates by executing in parallel if the API doesn't support sampleCount or numberOfImages easily directly via the SDK syntax.
             const generateOneVariation = async () => {
-                const response = await ai.models.generateContent({
-                    model: targetModel,
-                    contents: {
-                        role: 'user',
-                        parts: [
-                            { text: prompt },
-                            {
-                                inlineData: {
-                                    mimeType,
-                                    data,
-                                },
+                let lastModelError: any = null;
+                for (const currentModel of IMAGE_MODELS) {
+                    try {
+                        const response = await ai.models.generateContent({
+                            model: currentModel,
+                            contents: {
+                                role: 'user',
+                                parts: [
+                                    { text: prompt },
+                                    { inlineData: { mimeType, data } }
+                                ],
                             }
-                        ],
-                    }
-                });
-                for (const part of response.candidates?.[0]?.content?.parts || []) {
-                    if (part.inlineData) {
-                        const returnedMimeType = part.inlineData.mimeType || 'image/jpeg';
-                        return `data:${returnedMimeType};base64,${part.inlineData.data}`;
+                        });
+                        for (const part of response.candidates?.[0]?.content?.parts || []) {
+                            if (part.inlineData) {
+                                const returnedMimeType = part.inlineData.mimeType || 'image/jpeg';
+                                return `data:${returnedMimeType};base64,${part.inlineData.data}`;
+                            }
+                        }
+                        throw new Error("No image in response.");
+                    } catch (modelError: any) {
+                        lastModelError = modelError;
+                        const isRetryable = modelError?.status === 503 || modelError?.code === 503 ||
+                            modelError?.status === 404 || modelError?.code === 404 ||
+                            modelError?.message?.includes('503') || modelError?.message?.includes('UNAVAILABLE') ||
+                            modelError?.message?.includes('404') || modelError?.message?.includes('NOT_FOUND') ||
+                            modelError?.message?.includes('is not found') ||
+                            modelError?.message?.includes('high demand') || modelError?.message?.includes('overloaded');
+                        if (isRetryable && currentModel !== IMAGE_MODELS[IMAGE_MODELS.length - 1]) {
+                            continue;
+                        }
+                        throw modelError;
                     }
                 }
-                throw new Error("No image generated.");
+                throw lastModelError || new Error("No image generated.");
             };
 
             const promises = Array.from({ length: count }).map(() => generateOneVariation());

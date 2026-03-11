@@ -7,6 +7,18 @@ export interface UpdateLog {
 
 export const UPDATE_LOGS: UpdateLog[] = [
     {
+        version: '0.2.0',
+        date: '2026-03-12',
+        time: '01:30 AM',
+        changes: [
+            'Added automatic model fallback across all image generation functions',
+            'Added Gemini 3.1 Flash model support',
+            'Fixed MIME type handling for uploaded product images',
+            'Magic prompt enhancement now uses product analysis context',
+            'Improved scene cleaning and variation generation reliability'
+        ]
+    },
+    {
         version: '0.1.3',
         date: '2026-03-02',
         time: '11:19 AM',

@@ -34,6 +34,7 @@ const PRESET_SCENES = {
 export default function Dashboard() {
     const {
         uploadedImage, setUploadedImage,
+        uploadedImageMimeType, setUploadedImageMimeType,
         analysis, setAnalysis,
         originalAnalysis, setOriginalAnalysis,
         results, setResults,
@@ -112,6 +113,7 @@ export default function Dashboard() {
                     const mimeType = file.type
 
                     setUploadedImage(base64Data)
+                    setUploadedImageMimeType(mimeType)
 
                     const apiKey = localStorage.getItem('plume_gemini_api_key') || undefined
 
@@ -232,7 +234,7 @@ export default function Dashboard() {
                 }
             }
 
-            const imageDataUrl = `data:image/jpeg;base64,${uploadedImage}`;
+            const imageDataUrl = `data:${uploadedImageMimeType};base64,${uploadedImage}`;
 
             const { imageUrl, fullPrompt } = await generateProductScene(
                 imageDataUrl,
@@ -343,7 +345,6 @@ export default function Dashboard() {
         setCurrentProductId(profile.id)
 
         // Convert image URL to base64 for compatibility
-        // In production, you might want to keep it as URL
         fetch(profile.image_url)
             .then(res => res.blob())
             .then(blob => {
@@ -352,12 +353,13 @@ export default function Dashboard() {
                 reader.onloadend = () => {
                     const base64 = reader.result as string
                     const base64Data = base64.split(',')[1]
+                    // Extract and store the actual MIME type from the blob
+                    const detectedMimeType = blob.type || 'image/jpeg'
                     setUploadedImage(base64Data)
+                    setUploadedImageMimeType(detectedMimeType)
                     setAnalysis(profile.analysis_data.description)
+                    setOriginalAnalysis(profile.analysis_data.description)
                     setResults([]) // Clear previous results
-                    // Update scene settings if profile has them (optional, but good for consistency)
-                    // For now, we keep current settings or reset? User didn't specify.
-                    // Let's keep current settings to allow applying profile to current scene.
                 }
             })
             .catch(async error => {
@@ -665,7 +667,7 @@ export default function Dashboard() {
                             <ProductUploader
                                 onUpload={handleUpload}
                                 isUploading={isUploading}
-                                previewUrl={uploadedImage ? `data:image/jpeg;base64,${uploadedImage}` : null}
+                                previewUrl={uploadedImage ? `data:${uploadedImageMimeType};base64,${uploadedImage}` : null}
                                 onClear={() => {
                                     setUploadedImage(null)
                                     setAnalysis(null)
@@ -760,6 +762,7 @@ export default function Dashboard() {
                                 onDeleteTemplate={handleDeleteTemplate}
                                 settings={sceneSettings}
                                 onSettingsChange={setSceneSettings}
+                                productAnalysis={analysis}
                             />
                         </section>
                     </div>
